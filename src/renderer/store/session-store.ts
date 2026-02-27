@@ -52,6 +52,7 @@ interface SessionState {
   collapsedNodes: Set<string>;
   searchQuery: string;
   tokenStats: TokenStats;
+  backgroundActivities: Map<string, { activity: LiveActivity; sessionName: string }>;
 
   // Actions
   setSessions: (sessions: SessionInfo[]) => void;
@@ -71,6 +72,7 @@ interface SessionState {
   setIdle: () => void;
   toggleCollapse: (nodeId: string) => void;
   setSearchQuery: (query: string) => void;
+  setBackgroundActivities: (map: Map<string, { activity: LiveActivity; sessionName: string }>) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -241,7 +243,7 @@ function applyFilters(
  * Detect what Claude is currently doing based on the tail of the message stream.
  * Walk backwards from the end to find the last meaningful message type.
  */
-function detectActivity(messages: JSONLMessage[]): LiveActivity {
+export function detectActivity(messages: JSONLMessage[]): LiveActivity {
   // If the last message is more than 30 seconds old, the session isn't live
   if (messages.length > 0) {
     const last = messages[messages.length - 1];
@@ -406,6 +408,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   collapsedNodes: new Set<string>(),
   searchQuery: '',
   tokenStats: EMPTY_STATS,
+  backgroundActivities: new Map(),
 
   // ── Actions ──────────────────────────────────────────────────────────
 
@@ -618,4 +621,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const { nodes, edges } = filterOnly(state, { searchQuery: query });
     set({ searchQuery: query, nodes, edges });
   },
+
+  setBackgroundActivities: (map) => set({ backgroundActivities: map }),
 }));

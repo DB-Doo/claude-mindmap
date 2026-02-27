@@ -49,11 +49,26 @@ export default function MindMap() {
   const { fitView, setCenter, getZoom } = useReactFlow();
   const prevNodeCount = useRef(0);
 
+  // Track whether the user has manually panned/zoomed.
+  // Set true on user interaction, cleared on programmatic moves.
+  const userPanned = useRef(false);
+  const isProgrammaticMove = useRef(false);
+
+  const onMoveStart = useCallback((_: any, event: any) => {
+    // event is null for programmatic moves (setCenter, fitView)
+    // event is a real event for user interaction (mouse, touch, wheel)
+    if (event && !isProgrammaticMove.current) {
+      userPanned.current = true;
+    }
+  }, []);
+
   // When nodes go from 0 to N (session load/switch), fitView to show all.
-  // When nodes go from N to N+k (incremental), pan to the newest node.
+  // When nodes go from N to N+k (incremental), pan to the newest node
+  // ONLY if the user hasn't manually panned away.
   useEffect(() => {
     if (nodes.length === 0) {
       prevNodeCount.current = 0;
+      userPanned.current = false;
       return;
     }
 
@@ -62,11 +77,14 @@ export default function MindMap() {
 
     if (wasEmpty && nodes.length > 0) {
       // Session just loaded — fit all nodes into view
+      isProgrammaticMove.current = true;
       setTimeout(() => {
         fitView({ duration: 400, padding: 0.15 });
+        setTimeout(() => { isProgrammaticMove.current = false; }, 500);
       }, 150);
-    } else if (autoFollow && hasNewNodes) {
-      // Incremental update — pan to the newest node
+      userPanned.current = false;
+    } else if (autoFollow && hasNewNodes && !userPanned.current) {
+      // Incremental update — pan to newest node (user hasn't panned away)
       const lastNode = nodes[nodes.length - 1];
       if (lastNode && lastNode.position) {
         const nodeWidth = lastNode.measured?.width ?? lastNode.width ?? 200;
@@ -74,8 +92,10 @@ export default function MindMap() {
         const x = lastNode.position.x + nodeWidth / 2;
         const y = lastNode.position.y + nodeHeight / 2;
         const currentZoom = getZoom();
+        isProgrammaticMove.current = true;
         setTimeout(() => {
           setCenter(x, y, { duration: 400, zoom: currentZoom });
+          setTimeout(() => { isProgrammaticMove.current = false; }, 500);
         }, 100);
       }
     }
@@ -93,8 +113,11 @@ export default function MindMap() {
       const nodeHeight = lastNode.measured?.height ?? lastNode.height ?? 80;
       const x = lastNode.position.x + nodeWidth / 2;
       const y = lastNode.position.y + nodeHeight / 2;
+      isProgrammaticMove.current = true;
+      userPanned.current = false;
       setTimeout(() => {
         setCenter(x, y, { duration: 400, zoom: 1 });
+        setTimeout(() => { isProgrammaticMove.current = false; }, 500);
       }, 100);
     }
 
@@ -111,8 +134,11 @@ export default function MindMap() {
       const nodeHeight = firstNode.measured?.height ?? firstNode.height ?? 80;
       const x = firstNode.position.x + nodeWidth / 2;
       const y = firstNode.position.y + nodeHeight / 2;
+      isProgrammaticMove.current = true;
+      userPanned.current = false;
       setTimeout(() => {
         setCenter(x, y, { duration: 400, zoom: 1 });
+        setTimeout(() => { isProgrammaticMove.current = false; }, 500);
       }, 100);
     }
 
@@ -134,6 +160,28 @@ export default function MindMap() {
   const onPaneClick = useCallback(() => {
     selectNode(null);
   }, [selectNode]);
+
+  // Click-to-teleport on minimap: convert SVG click coords → flow coords
+  const minimapRef = useRef<HTMLDivElement>(null);
+  const onMinimapClick = useCallback((e: React.MouseEvent) => {
+    const container = minimapRef.current;
+    if (!container) return;
+    const svg = container.querySelector('svg');
+    if (!svg) return;
+    const viewBox = svg.viewBox.baseVal;
+    if (!viewBox || viewBox.width === 0 || viewBox.height === 0) return;
+    const rect = svg.getBoundingClientRect();
+    // Mouse position relative to SVG element (0..1)
+    const ratioX = (e.clientX - rect.left) / rect.width;
+    const ratioY = (e.clientY - rect.top) / rect.height;
+    // Map to flow coordinates via viewBox
+    const flowX = viewBox.x + ratioX * viewBox.width;
+    const flowY = viewBox.y + ratioY * viewBox.height;
+    const currentZoom = getZoom();
+    isProgrammaticMove.current = true;
+    setCenter(flowX, flowY, { duration: 300, zoom: currentZoom });
+    setTimeout(() => { isProgrammaticMove.current = false; }, 400);
+  }, [setCenter, getZoom]);
 
   // Constrain panning to the area around nodes (prevents drifting into void)
   const translateExtent = useMemo((): [[number, number], [number, number]] => {
@@ -161,6 +209,7 @@ export default function MindMap() {
       edgeTypes={edgeTypes}
       onNodeClick={onNodeClick}
       onPaneClick={onPaneClick}
+      onMoveStart={onMoveStart}
       fitView
       translateExtent={translateExtent}
       minZoom={0.1}
@@ -170,21 +219,23 @@ export default function MindMap() {
     >
       <Background color="#1a1a2e" gap={20} size={1} />
       <Controls />
-      <MiniMap
-        nodeColor={(n) => {
-          const gn = n.data as any;
-          if (gn?.kind === 'user') return '#34d399';
-          if (gn?.kind === 'tool_use') return TOOL_COLORS[gn.toolName] || '#6b7280';
-          if (gn?.kind === 'thinking') return '#a855f7';
-          if (gn?.kind === 'text') return '#6b7280';
-          if (gn?.kind === 'compaction') return '#fbbf24';
-          if (gn?.kind === 'session_end') return '#475569';
-          return '#475569';
-        }}
-        style={{ backgroundColor: '#0d0d14' }}
-        maskColor="rgba(10, 10, 15, 0.7)"
-        pannable
-      />
+      <div ref={minimapRef} onClick={onMinimapClick}>
+        <MiniMap
+          nodeColor={(n) => {
+            const gn = n.data as any;
+            if (gn?.kind === 'user') return '#34d399';
+            if (gn?.kind === 'tool_use') return TOOL_COLORS[gn.toolName] || '#6b7280';
+            if (gn?.kind === 'thinking') return '#a855f7';
+            if (gn?.kind === 'text') return '#6b7280';
+            if (gn?.kind === 'compaction') return '#fbbf24';
+            if (gn?.kind === 'session_end') return '#475569';
+            return '#475569';
+          }}
+          style={{ backgroundColor: '#0d0d14' }}
+          maskColor="rgba(10, 10, 15, 0.7)"
+          pannable
+        />
+      </div>
     </ReactFlow>
   );
 }

@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'path';
+import * as fs from 'fs';
 import { discoverSessions } from './session-discovery';
 import { SessionWatcher } from './watcher';
 
@@ -73,6 +74,33 @@ ipcMain.handle('stop-watching', async () => {
     currentWatcher.stop();
     currentWatcher = null;
   }
+});
+
+ipcMain.handle('peek-session-activity', async (_event, filePaths: string[]) => {
+  return filePaths.map((fp) => {
+    try {
+      const stat = fs.statSync(fp);
+      if (stat.size === 0) return { filePath: fp, tailMessages: [] };
+      const readSize = Math.min(4096, stat.size);
+      const buf = Buffer.alloc(readSize);
+      const fd = fs.openSync(fp, 'r');
+      fs.readSync(fd, buf, 0, readSize, stat.size - readSize);
+      fs.closeSync(fd);
+      const text = buf.toString('utf8');
+      const lines = text.split('\n').filter((l) => l.trim());
+      const messages: any[] = [];
+      for (let i = lines.length - 1; i >= 0 && messages.length < 5; i--) {
+        try {
+          messages.unshift(JSON.parse(lines[i]));
+        } catch {
+          // skip malformed lines
+        }
+      }
+      return { filePath: fp, tailMessages: messages };
+    } catch {
+      return { filePath: fp, tailMessages: [] };
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

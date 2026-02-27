@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useSessionStore } from '../store/session-store';
+import { useSessionStore, detectActivity } from '../store/session-store';
 import { SessionInfo, JSONLMessage } from '../../shared/types';
 
 declare global {
@@ -9,6 +9,7 @@ declare global {
       watchSession: (filePath: string) => Promise<any[]>;
       stopWatching: () => Promise<void>;
       onNewMessages: (cb: (messages: any[]) => void) => () => void;
+      peekSessionActivity: (filePaths: string[]) => Promise<{ filePath: string; tailMessages: any[] }[]>;
     };
   }
 }
@@ -22,6 +23,8 @@ export function useSessionWatcher(): void {
   const setMessages = useSessionStore((s) => s.setMessages);
   const appendMessages = useSessionStore((s) => s.appendMessages);
   const activeSessionPath = useSessionStore((s) => s.activeSessionPath);
+  const sessions = useSessionStore((s) => s.sessions);
+  const setBackgroundActivities = useSessionStore((s) => s.setBackgroundActivities);
 
   const appendRef = useRef(appendMessages);
   appendRef.current = appendMessages;
@@ -110,4 +113,35 @@ export function useSessionWatcher(): void {
       })
       .catch(() => {});
   }, [activeSessionPath, setMessages]);
+
+  // Poll background sessions for activity every 3 seconds
+  useEffect(() => {
+    const poll = () => {
+      const activePaths = sessions
+        .filter((s) => s.endReason === 'active')
+        .map((s) => s.filePath);
+
+      if (activePaths.length === 0) {
+        setBackgroundActivities(new Map());
+        return;
+      }
+
+      window.api.peekSessionActivity(activePaths).then((results) => {
+        const map = new Map<string, { activity: any; sessionName: string }>();
+        for (const r of results) {
+          const activity = detectActivity(r.tailMessages);
+          if (activity !== 'idle') {
+            const session = sessions.find((s) => s.filePath === r.filePath);
+            const name = session?.displayText || session?.sessionId || 'Session';
+            map.set(r.filePath, { activity, sessionName: name });
+          }
+        }
+        setBackgroundActivities(map);
+      }).catch(() => {});
+    };
+
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, [sessions, activeSessionPath, setBackgroundActivities]);
 }

@@ -14,6 +14,10 @@ contextBridge.exposeInMainWorld('api', {
   stopWatching: (): Promise<void> =>
     ipcRenderer.invoke('stop-watching'),
 
+  /** Peek at the tail of multiple session files to detect background activity */
+  peekSessionActivity: (filePaths: string[]): Promise<{ filePath: string; tailMessages: JSONLMessage[] }[]> =>
+    ipcRenderer.invoke('peek-session-activity', filePaths),
+
   /** Register a callback for incrementally-appended messages */
   onNewMessages: (callback: (messages: JSONLMessage[]) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, messages: JSONLMessage[]) =>
