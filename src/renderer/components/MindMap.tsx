@@ -13,6 +13,8 @@ import UserNode from '../nodes/UserNode';
 import ThinkingNode from '../nodes/ThinkingNode';
 import TextNode from '../nodes/TextNode';
 import SystemNode from '../nodes/SystemNode';
+import CompactionNode from '../nodes/CompactionNode';
+import SessionEndNode from '../nodes/SessionEndNode';
 import NeonEdge from '../edges/NeonEdge';
 import { useSessionStore } from '../store/session-store';
 import { useAutoLayout } from '../hooks/useAutoLayout';
@@ -24,6 +26,8 @@ const nodeTypes = {
   thinkingNode: ThinkingNode,
   textNode: TextNode,
   systemNode: SystemNode,
+  compactionNode: CompactionNode,
+  sessionEndNode: SessionEndNode,
 };
 
 const edgeTypes = {
@@ -40,14 +44,27 @@ export default function MindMap() {
   const clearNewNodes = useSessionStore(s => s.clearNewNodes);
 
   const { nodes, edges } = useAutoLayout(graphNodes, graphEdges, direction);
-  const { setCenter, getZoom } = useReactFlow();
+  const { fitView, setCenter, getZoom } = useReactFlow();
   const prevNodeCount = useRef(0);
 
-  // Auto-follow: pan to the newest node when new nodes appear,
-  // keeping the current zoom level instead of zooming out to fit all.
+  // When nodes go from 0 to N (session load/switch), fitView to show all.
+  // When nodes go from N to N+k (incremental), pan to the newest node.
   useEffect(() => {
-    if (autoFollow && nodes.length > prevNodeCount.current && nodes.length > 0) {
-      // Find the last node (newest, since they're ordered by creation)
+    if (nodes.length === 0) {
+      prevNodeCount.current = 0;
+      return;
+    }
+
+    const wasEmpty = prevNodeCount.current === 0;
+    const hasNewNodes = nodes.length > prevNodeCount.current;
+
+    if (wasEmpty && nodes.length > 0) {
+      // Session just loaded — fit all nodes into view
+      setTimeout(() => {
+        fitView({ duration: 400, padding: 0.15 });
+      }, 150);
+    } else if (autoFollow && hasNewNodes) {
+      // Incremental update — pan to the newest node
       const lastNode = nodes[nodes.length - 1];
       if (lastNode && lastNode.position) {
         const nodeWidth = lastNode.measured?.width ?? lastNode.width ?? 200;
@@ -60,8 +77,9 @@ export default function MindMap() {
         }, 100);
       }
     }
+
     prevNodeCount.current = nodes.length;
-  }, [nodes.length, autoFollow, setCenter, getZoom]);
+  }, [nodes.length, autoFollow, fitView, setCenter, getZoom]);
 
   // Clear isNew flags after animation
   useEffect(() => {
@@ -100,9 +118,16 @@ export default function MindMap() {
           const gn = n.data as any;
           if (gn?.kind === 'user') return '#34d399';
           if (gn?.kind === 'tool_use') return TOOL_COLORS[gn.toolName] || '#6b7280';
-          return '#333';
+          if (gn?.kind === 'thinking') return '#a855f7';
+          if (gn?.kind === 'text') return '#6b7280';
+          if (gn?.kind === 'compaction') return '#fbbf24';
+          if (gn?.kind === 'session_end') return '#475569';
+          return '#475569';
         }}
-        maskColor="rgba(10, 10, 15, 0.8)"
+        style={{ backgroundColor: '#0d0d14' }}
+        maskColor="rgba(10, 10, 15, 0.7)"
+        pannable
+        zoomable
       />
     </ReactFlow>
   );

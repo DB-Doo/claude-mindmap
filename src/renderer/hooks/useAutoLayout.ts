@@ -4,7 +4,19 @@ import { type Node, type Edge } from '@xyflow/react';
 import { GraphNode, GraphEdge, LayoutDirection } from '../../shared/types';
 
 const NODE_WIDTH = 280;
-const NODE_HEIGHT = 80;
+const BASE_HEIGHT = 50; // header + padding
+const LINE_HEIGHT = 17; // ~12px font * 1.4 line-height
+const CHARS_PER_LINE = 36; // rough chars per line at 12px in 280px width
+const MAX_LINES = 8; // matches -webkit-line-clamp in CSS
+
+/**
+ * Estimate the rendered height of a node based on its label text
+ * so dagre can space nodes properly and avoid overlapping.
+ */
+function estimateNodeHeight(label: string): number {
+  const lines = Math.min(Math.ceil(label.length / CHARS_PER_LINE), MAX_LINES);
+  return BASE_HEIGHT + lines * LINE_HEIGHT;
+}
 
 /**
  * Maps a GraphNode kind to the corresponding React Flow custom node type.
@@ -19,6 +31,10 @@ function nodeTypeFromKind(kind: GraphNode['kind']): string {
       return 'thinkingNode';
     case 'text':
       return 'textNode';
+    case 'compaction':
+      return 'compactionNode';
+    case 'session_end':
+      return 'sessionEndNode';
     default:
       return 'systemNode';
   }
@@ -53,7 +69,8 @@ export function useAutoLayout(
     });
 
     graphNodes.forEach((node) => {
-      g.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
+      const h = estimateNodeHeight(node.label);
+      g.setNode(node.id, { width: NODE_WIDTH, height: h });
     });
 
     graphEdges.forEach((edge) => {
@@ -64,16 +81,21 @@ export function useAutoLayout(
 
     const nodes = graphNodes.map((gn) => {
       const pos = g.node(gn.id);
+      const h = estimateNodeHeight(gn.label);
       return {
         id: gn.id,
         type: nodeTypeFromKind(gn.kind),
         position: {
           x: (pos?.x ?? 0) - NODE_WIDTH / 2,
-          y: (pos?.y ?? 0) - NODE_HEIGHT / 2,
+          y: (pos?.y ?? 0) - h / 2,
         },
         data: gn as unknown as Record<string, unknown>,
       };
     }) satisfies Node[];
+
+    // Build lookup map for O(1) node access instead of O(n) find per edge
+    const nodeById = new Map(graphNodes.map((n) => [n.id, n]));
+    const totalEdges = graphEdges.length;
 
     const edges: Edge[] = graphEdges.map((ge) => ({
       id: ge.id,
@@ -81,7 +103,8 @@ export function useAutoLayout(
       target: ge.target,
       type: 'neonEdge',
       data: {
-        toolName: graphNodes.find((n) => n.id === ge.target)?.toolName,
+        toolName: nodeById.get(ge.target)?.toolName,
+        totalEdges,
       },
     }));
 

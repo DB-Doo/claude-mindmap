@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { execSync } from 'child_process';
-import { SessionInfo } from '../shared/types';
+import { SessionInfo, SessionEndReason } from '../shared/types';
 
 interface HistoryEntry {
   display: string;
@@ -157,12 +157,16 @@ function extractSessionMeta(filePath: string, sessionId: string, projectPath: st
 
           const content = msg.message?.content;
           if (typeof content === 'string' && content.trim().length > 0) {
-            result.firstMessage = content.trim().slice(0, 120);
+            const t = content.trim();
+            if (!t.startsWith('<local-command-caveat>') && !t.startsWith('[Request interrupted')) {
+              result.firstMessage = t.slice(0, 120);
+            }
           } else if (Array.isArray(content)) {
             for (const block of content) {
               if (block.type === 'text' && block.text?.trim()) {
                 const t = block.text.trim();
                 if (t.startsWith('[Request interrupted')) continue;
+                if (t.startsWith('<local-command-caveat>')) continue;
                 result.firstMessage = t.slice(0, 120);
                 break;
               }
@@ -233,6 +237,49 @@ function parseHistoryFile(historyPath: string): Map<string, HistoryEntry> {
   return entryMap;
 }
 
+const ACTIVE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Detect how/why a session ended by reading the tail of the JSONL file.
+ */
+function detectEndReason(filePath: string, mtimeMs: number): SessionEndReason {
+  // Still actively being written to?
+  if (Date.now() - mtimeMs < ACTIVE_THRESHOLD_MS) {
+    return 'active';
+  }
+
+  // Read the last ~8KB and check for compact_boundary
+  try {
+    const stat = fs.statSync(filePath);
+    const tailSize = Math.min(8192, stat.size);
+    const buf = Buffer.alloc(tailSize);
+    const fd = fs.openSync(filePath, 'r');
+    fs.readSync(fd, buf, 0, tailSize, stat.size - tailSize);
+    fs.closeSync(fd);
+
+    const text = buf.toString('utf8');
+    const lines = text.split('\n');
+
+    // Walk backwards to find the last meaningful system message
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const trimmed = lines[i].trim();
+      if (!trimmed) continue;
+      try {
+        const msg = JSON.parse(trimmed);
+        if (msg.type === 'system' && msg.subtype === 'compact_boundary') {
+          return 'compacted';
+        }
+      } catch {
+        // partial line from seeking mid-line, skip
+      }
+    }
+  } catch {
+    // read error, fall through
+  }
+
+  return 'ended';
+}
+
 /**
  * Scan all discoverable .claude directories (Windows native + WSL distros)
  * and return metadata for every session whose JSONL log file exists.
@@ -280,10 +327,12 @@ export async function discoverSessions(): Promise<SessionInfo[]> {
 
     const meta = extractSessionMeta(logFile, entry.sessionId, entry.project);
     const title = meta.projectName || meta.firstMessage || entry.display || '(no prompt)';
-    // Show first message as subtitle when the title is a project name
+    // Show latest user prompt as subtitle (entry.display from history.jsonl
+    // tracks the most recent prompt, while meta.firstMessage is the first one)
     const subtitle = meta.projectName
-      ? (meta.firstMessage || entry.display || undefined)
+      ? (entry.display || meta.firstMessage || undefined)
       : undefined;
+    const endReason = detectEndReason(logFile, stat.mtimeMs);
     sessions.push({
       sessionId: entry.sessionId,
       project: entry.project,
@@ -292,6 +341,7 @@ export async function discoverSessions(): Promise<SessionInfo[]> {
       timestamp: new Date(entry.timestamp).toISOString(),
       filePath: logFile,
       lastModified: stat.mtimeMs,
+      endReason,
     });
   }
 

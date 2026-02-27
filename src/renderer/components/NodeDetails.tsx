@@ -66,11 +66,14 @@ const preStyle: CSSProperties = {
 };
 
 export default function NodeDetails() {
-  const selectedNodeId = useSessionStore(s => s.selectedNodeId);
-  const nodes = useSessionStore(s => s.nodes);
   const selectNode = useSessionStore(s => s.selectNode);
 
-  const node = nodes.find(n => n.id === selectedNodeId);
+  // Derived selector: only re-renders when the selected node's content changes
+  const node = useSessionStore(s => {
+    if (!s.selectedNodeId) return null;
+    return s.nodes.find(n => n.id === s.selectedNodeId) ?? null;
+  });
+
   if (!node) return null;
 
   const color = node.toolName

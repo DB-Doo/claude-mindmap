@@ -14,7 +14,10 @@ function NeonEdge(props: EdgeProps) {
     targetX, targetY, targetPosition,
   });
 
-  const color = TOOL_COLORS[(data as Record<string, unknown>)?.toolName as string || ''] || TOOL_COLORS.default;
+  const edgeData = data as Record<string, unknown> | undefined;
+  const color = TOOL_COLORS[edgeData?.toolName as string || ''] || TOOL_COLORS.default;
+  const totalEdges = (edgeData?.totalEdges as number) || 0;
+  const showParticles = totalEdges < 200;
 
   return (
     <g>
@@ -32,14 +35,17 @@ function NeonEdge(props: EdgeProps) {
         stroke={color}
         fill="none"
       />
-      {/* Particle 1 */}
-      <circle r="3" fill={color} className="edge-particle" opacity="0.9">
-        <animateMotion dur="2s" repeatCount="indefinite" path={edgePath} />
-      </circle>
-      {/* Particle 2 - offset */}
-      <circle r="2" fill={color} className="edge-particle" opacity="0.6">
-        <animateMotion dur="2s" repeatCount="indefinite" path={edgePath} begin="1s" />
-      </circle>
+      {/* Particles only for smaller graphs */}
+      {showParticles && (
+        <>
+          <circle r="3" fill={color} className="edge-particle" opacity="0.9">
+            <animateMotion dur="2s" repeatCount="indefinite" path={edgePath} />
+          </circle>
+          <circle r="2" fill={color} className="edge-particle" opacity="0.6">
+            <animateMotion dur="2s" repeatCount="indefinite" path={edgePath} begin="1s" />
+          </circle>
+        </>
+      )}
     </g>
   );
 }

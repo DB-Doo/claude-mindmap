@@ -1,5 +1,11 @@
-import type { CSSProperties } from 'react';
+import { useCallback, useState, useRef, useEffect, type CSSProperties, type ChangeEvent } from 'react';
 import { useSessionStore } from '../store/session-store';
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k';
+  return String(n);
+}
 
 const toolbarStyle: CSSProperties = {
   height: 40,
@@ -42,9 +48,32 @@ const dividerStyle: CSSProperties = {
   backgroundColor: '#2a2a3e',
 };
 
-const nodeCountStyle: CSSProperties = {
+const searchStyle: CSSProperties = {
+  padding: '4px 8px',
+  backgroundColor: '#0a0a0f',
+  color: '#e0e0e0',
+  border: '1px solid #2a2a3e',
+  borderRadius: 4,
+  fontSize: 11,
+  fontFamily: 'inherit',
+  width: 160,
+  outline: 'none',
+  transition: 'border-color 0.15s',
+};
+
+const statsStyle: CSSProperties = {
   marginLeft: 'auto',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 12,
   color: '#888',
+  fontSize: 10,
+  whiteSpace: 'nowrap',
+};
+
+const costStyle: CSSProperties = {
+  color: '#fbbf24',
+  fontWeight: 600,
   fontSize: 11,
 };
 
@@ -60,6 +89,26 @@ export default function Toolbar() {
   const toggleShowSystem = useSessionStore(s => s.toggleShowSystem);
   const toggleAutoFollow = useSessionStore(s => s.toggleAutoFollow);
   const nodeCount = useSessionStore(s => s.nodes.length);
+  const searchQuery = useSessionStore(s => s.searchQuery);
+  const setSearchQuery = useSessionStore(s => s.setSearchQuery);
+  const tokenStats = useSessionStore(s => s.tokenStats);
+
+  // Debounced search: local state updates instantly, store updates after 200ms
+  const [localSearch, setLocalSearch] = useState(searchQuery);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => { setLocalSearch(searchQuery); }, [searchQuery]);
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+
+  const onSearchChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      setLocalSearch(value);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => setSearchQuery(value), 200);
+    },
+    [setSearchQuery],
+  );
 
   return (
     <div style={toolbarStyle}>
@@ -68,13 +117,13 @@ export default function Toolbar() {
           style={direction === 'TB' ? activeBtn : btn}
           onClick={() => setDirection('TB')}
         >
-          {'↕'} Vertical
+          Vertical
         </button>
         <button
           style={direction === 'LR' ? activeBtn : btn}
           onClick={() => setDirection('LR')}
         >
-          {'↔'} Horizontal
+          Horizontal
         </button>
       </div>
       <div style={dividerStyle} />
@@ -93,8 +142,25 @@ export default function Toolbar() {
       <button style={autoFollow ? activeBtn : btn} onClick={toggleAutoFollow}>
         Auto-follow
       </button>
-      <div style={nodeCountStyle}>
-        {nodeCount} nodes
+      <div style={dividerStyle} />
+      <input
+        type="text"
+        placeholder="Search nodes..."
+        value={localSearch}
+        onChange={onSearchChange}
+        style={searchStyle}
+        onFocus={(e) => { e.currentTarget.style.borderColor = '#a855f7'; }}
+        onBlur={(e) => { e.currentTarget.style.borderColor = '#2a2a3e'; }}
+      />
+      <div style={statsStyle}>
+        <span>{nodeCount} nodes</span>
+        {tokenStats.inputTokens > 0 && (
+          <>
+            <span>In: {formatTokens(tokenStats.inputTokens)}</span>
+            <span>Out: {formatTokens(tokenStats.outputTokens)}</span>
+            <span style={costStyle}>${tokenStats.estimatedCost.toFixed(2)}</span>
+          </>
+        )}
       </div>
     </div>
   );

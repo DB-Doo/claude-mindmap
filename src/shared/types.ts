@@ -22,7 +22,7 @@ export interface ToolUseBlock {
 export interface ToolResultBlock {
   type: 'tool_result';
   tool_use_id: string;
-  content: string;
+  content: string | unknown[];
 }
 
 export type ContentBlock = ThinkingBlock | TextBlock | ToolUseBlock | ToolResultBlock;
@@ -76,7 +76,9 @@ export type JSONLMessage = UserMessage | AssistantMessage | ProgressMessage | Sy
 // Graph Model
 // ---------------------------------------------------------------------------
 
-export type GraphNodeKind = 'user' | 'thinking' | 'text' | 'tool_use' | 'system';
+export type GraphNodeKind = 'user' | 'thinking' | 'text' | 'tool_use' | 'system' | 'compaction' | 'session_end';
+
+export type SessionEndReason = 'active' | 'ended' | 'compacted';
 
 export type ToolStatus = 'running' | 'success' | 'error';
 
@@ -90,6 +92,16 @@ export interface GraphNode {
   status: ToolStatus | null;
   timestamp: string;
   isNew: boolean;
+  /** Number of descendant nodes (set during filtering). */
+  childCount?: number;
+  /** True when this node is collapsed (children hidden). */
+  collapsed?: boolean;
+  /** True when this node matches the current search query. */
+  searchMatch?: boolean;
+  /** For compaction nodes: number of tokens compressed. */
+  compactTokens?: number;
+  /** For session_end nodes: why the session ended. */
+  endReason?: SessionEndReason;
 }
 
 export interface GraphEdge {
@@ -112,6 +124,8 @@ export interface SessionInfo {
   filePath: string;
   /** Epoch ms when the JSONL file was last modified on disk. */
   lastModified: number;
+  /** Why/how this session ended. */
+  endReason: SessionEndReason;
 }
 
 // ---------------------------------------------------------------------------

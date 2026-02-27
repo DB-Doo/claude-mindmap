@@ -18,6 +18,10 @@ function createWindow(): void {
     },
   });
 
+  mainWindow.webContents.on('console-message', (_e, level, message) => {
+    if (level >= 2) console.log('[R]', message);
+  });
+
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {

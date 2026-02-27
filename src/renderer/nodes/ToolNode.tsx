@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { motion } from 'framer-motion';
 import { GraphNode, TOOL_COLORS } from '../../shared/types';
+import CollapseButton from './CollapseButton';
 
 const TOOL_ICONS: Record<string, string> = {
   Bash: '\u26A1', Read: '\uD83D\uDCD6', Edit: '\u270F\uFE0F', Write: '\uD83D\uDCDD',
@@ -9,20 +10,19 @@ const TOOL_ICONS: Record<string, string> = {
   Task: '\uD83D\uDE80', Skill: '\u2B50',
 };
 
-function ToolNode({ data }: NodeProps) {
+function ToolNode({ data, id }: NodeProps) {
   const gn = data as unknown as GraphNode;
   const color = TOOL_COLORS[gn.toolName || ''] || TOOL_COLORS.default;
   const icon = TOOL_ICONS[gn.toolName || ''] || '\uD83D\uDD27';
   const toolClass = `tool-${(gn.toolName || 'default').toLowerCase()}`;
+  const dimmed = gn.searchMatch === false && gn.searchMatch !== undefined;
+  const needsAnimation = gn.isNew || dimmed;
 
-  return (
-    <motion.div
-      initial={gn.isNew ? { scale: 0, opacity: 0 } : false}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-      className={`mind-map-node ${toolClass} ${gn.isNew ? 'node-new' : ''} ${gn.status === 'running' ? 'node-running' : ''}`}
-      style={{ '--pulse-color': color } as React.CSSProperties}
-    >
+  const className = `mind-map-node ${toolClass} ${gn.isNew ? 'node-new' : ''} ${gn.status === 'running' ? 'node-running' : ''} ${gn.searchMatch ? 'search-match' : ''}`;
+  const style = { '--pulse-color': color } as React.CSSProperties;
+
+  const content = (
+    <>
       <Handle type="target" position={Position.Top} />
       <div className="node-header">
         <span className="node-icon">{icon}</span>
@@ -36,7 +36,28 @@ function ToolNode({ data }: NodeProps) {
       </div>
       <div className="node-label">{gn.label}</div>
       <Handle type="source" position={Position.Bottom} />
-    </motion.div>
+      <CollapseButton nodeId={id} childCount={gn.childCount || 0} collapsed={gn.collapsed || false} />
+    </>
+  );
+
+  if (needsAnimation) {
+    return (
+      <motion.div
+        initial={gn.isNew ? { scale: 0, opacity: 0 } : false}
+        animate={{ scale: 1, opacity: dimmed ? 0.3 : 1 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+        className={className}
+        style={style}
+      >
+        {content}
+      </motion.div>
+    );
+  }
+
+  return (
+    <div className={className} style={style}>
+      {content}
+    </div>
   );
 }
 

@@ -26,9 +26,14 @@ export function useSessionWatcher(): void {
   const appendRef = useRef(appendMessages);
   appendRef.current = appendMessages;
 
-  // On mount: discover sessions
+  // On mount: discover sessions, and periodically re-discover (every 30s)
+  // so endReason updates from 'active' → 'ended' without manual refresh.
   useEffect(() => {
     window.api.discoverSessions().then(setSessions);
+    const interval = setInterval(() => {
+      window.api.discoverSessions().then(setSessions);
+    }, 30_000);
+    return () => clearInterval(interval);
   }, [setSessions]);
 
   // Register the new-messages listener once for incremental updates.

@@ -386,6 +386,77 @@
   opacity: 0.7;
 }
 
+/* Compaction node — amber horizontal divider */
+.compaction-node {
+  border-color: var(--neon-gold);
+  border-style: dashed;
+  background: linear-gradient(
+    90deg,
+    rgba(251, 191, 36, 0.06) 0%,
+    var(--bg-secondary) 30%,
+    var(--bg-secondary) 70%,
+    rgba(251, 191, 36, 0.06) 100%
+  );
+  box-shadow:
+    0 0 8px rgba(251, 191, 36, 0.2),
+    0 0 20px rgba(251, 191, 36, 0.08);
+  min-width: 280px;
+  max-width: 380px;
+}
+
+.compaction-node:hover {
+  box-shadow:
+    0 0 14px rgba(251, 191, 36, 0.35),
+    0 0 30px rgba(251, 191, 36, 0.15);
+}
+
+.compaction-node .node-header {
+  color: var(--neon-gold);
+}
+
+.compaction-node .node-label {
+  color: var(--neon-gold);
+  font-weight: 600;
+}
+
+/* Session end node — terminal indicator */
+.session-end-node {
+  min-width: 180px;
+  max-width: 280px;
+  border-style: dashed;
+}
+
+.session-end-terminated {
+  opacity: 0.6;
+  border-color: var(--neon-gray);
+  box-shadow: none;
+}
+
+.session-end-terminated .node-header {
+  color: var(--neon-gray);
+}
+
+.session-end-terminated .node-label {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.session-end-compacted {
+  border-color: var(--neon-gold);
+  box-shadow:
+    0 0 6px rgba(251, 191, 36, 0.15),
+    0 0 14px rgba(251, 191, 36, 0.06);
+}
+
+.session-end-compacted .node-header {
+  color: var(--neon-gold);
+}
+
+.session-end-compacted .node-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
 /* ============================================================
    Animations
    ============================================================ */
@@ -412,6 +483,15 @@
 
 .node-new {
   animation: neon-pulse 0.6s ease-in-out 2;
+}
+
+/* Search match highlight — bright outline ring */
+.search-match {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+  box-shadow:
+    0 0 12px rgba(251, 191, 36, 0.4),
+    0 0 30px rgba(251, 191, 36, 0.15) !important;
 }
 
 /* Spin — for loading spinners */

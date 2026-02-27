@@ -2,17 +2,25 @@ import type {
   JSONLMessage,
   UserMessage,
   AssistantMessage,
+  SystemMessage,
   GraphNode,
   GraphEdge,
   GraphNodeKind,
   ToolStatus,
   ContentBlock,
+  SessionEndReason,
 } from '../../shared/types';
 import { TOOL_COLORS } from '../../shared/types';
 
 // ---------------------------------------------------------------------------
 // Label helpers
 // ---------------------------------------------------------------------------
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k';
+  return String(n);
+}
 
 function truncate(s: string, max: number): string {
   return s.length > max ? s.slice(0, max) + '\u2026' : s;
@@ -52,7 +60,9 @@ function resolveToolStatus(
   const result = toolResults.get(toolUseId);
   if (result === undefined) return 'running';
 
-  const lower = result.toLowerCase();
+  // Ensure result is a string (tool_result content can be an array of blocks)
+  const text = typeof result === 'string' ? result : String(result);
+  const lower = text.toLowerCase();
   if (lower.includes('error')) return 'error';
 
   // Match "exit code" followed by a non-zero number
@@ -68,6 +78,7 @@ function resolveToolStatus(
 
 export function buildGraph(
   messages: JSONLMessage[],
+  endReason?: SessionEndReason,
 ): { nodes: GraphNode[]; edges: GraphEdge[] } {
   // ---- First pass: collect tool results ----
   const toolResults = new Map<string, string>();
@@ -80,7 +91,18 @@ export function buildGraph(
 
     for (const block of content) {
       if (block.type === 'tool_result') {
-        toolResults.set(block.tool_use_id, block.content ?? '');
+        // content can be a string or an array of content blocks
+        const raw = block.content;
+        let text = '';
+        if (typeof raw === 'string') {
+          text = raw;
+        } else if (Array.isArray(raw)) {
+          text = raw
+            .filter((b: any) => b.type === 'text')
+            .map((b: any) => b.text ?? '')
+            .join('\n');
+        }
+        toolResults.set(block.tool_use_id, text);
       }
     }
   }
@@ -259,6 +281,33 @@ export function buildGraph(
 
     // ---- System messages ----
     if (msg.type === 'system') {
+      const sysMsg = msg as SystemMessage;
+
+      // Compaction boundary — special node
+      if (sysMsg.subtype === 'compact_boundary') {
+        const meta = sysMsg.compactMetadata as { trigger?: string; preTokens?: number } | undefined;
+        const preTokens = meta?.preTokens ?? 0;
+        const logicalParent = (sysMsg as any).logicalParentUuid ?? msg.parentUuid;
+
+        addNode(
+          {
+            id: msg.uuid,
+            parentId: logicalParent,
+            kind: 'compaction',
+            toolName: null,
+            label: `Compacted (${formatTokens(preTokens)} tokens)`,
+            detail: `Trigger: ${meta?.trigger ?? 'unknown'}\nPre-compaction tokens: ${preTokens.toLocaleString()}`,
+            status: null,
+            timestamp: msg.timestamp,
+            isNew: false,
+            compactTokens: preTokens,
+          },
+          msg.uuid,
+        );
+        continue;
+      }
+
+      // Generic system message (turn_duration, etc.)
       addNode(
         {
           id: msg.uuid,
@@ -319,6 +368,31 @@ export function buildGraph(
         target: childNodeIds[i],
       });
     }
+  }
+
+  // ---- Synthetic session-end node ----
+  if (endReason && endReason !== 'active' && nodes.length > 0) {
+    const lastNode = nodes[nodes.length - 1];
+    const endId = '__session_end__';
+    nodes.push({
+      id: endId,
+      parentId: lastNode.id,
+      kind: 'session_end',
+      toolName: null,
+      label: endReason === 'compacted' ? 'Session Compacted' : 'Session Ended',
+      detail: endReason === 'compacted'
+        ? 'Context was compressed. A new session may continue this work.'
+        : 'No further messages were recorded.',
+      status: null,
+      timestamp: lastNode.timestamp,
+      isNew: false,
+      endReason,
+    });
+    edges.push({
+      id: `${lastNode.id}->${endId}`,
+      source: lastNode.id,
+      target: endId,
+    });
   }
 
   return { nodes, edges };

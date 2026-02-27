@@ -2,26 +2,24 @@ import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { motion } from 'framer-motion';
 import type { GraphNode } from '../../shared/types';
-import CollapseButton from './CollapseButton';
 
-function SystemNode({ data, id }: NodeProps) {
+function CompactionNode({ data }: NodeProps) {
   const gn = data as unknown as GraphNode;
   const dimmed = gn.searchMatch === false && gn.searchMatch !== undefined;
   const needsAnimation = gn.isNew || dimmed;
 
-  const className = `mind-map-node system-node ${gn.isNew ? 'node-new' : ''} ${gn.searchMatch ? 'search-match' : ''}`;
-  const style = { '--pulse-color': '#475569' } as React.CSSProperties;
+  const className = `mind-map-node compaction-node ${gn.isNew ? 'node-new' : ''} ${gn.searchMatch ? 'search-match' : ''}`;
+  const style = { '--pulse-color': '#fbbf24' } as React.CSSProperties;
 
   const content = (
     <>
       <Handle type="target" position={Position.Top} />
       <div className="node-header">
-        <span className="node-icon">{'\u23F1'}</span>
-        <span>System</span>
+        <span className="node-icon">{'\uD83D\uDDDC'}</span>
+        <span>Conversation Compacted</span>
       </div>
       <div className="node-label">{gn.label}</div>
       <Handle type="source" position={Position.Bottom} />
-      <CollapseButton nodeId={id} childCount={gn.childCount || 0} collapsed={gn.collapsed || false} />
     </>
   );
 
@@ -46,4 +44,4 @@ function SystemNode({ data, id }: NodeProps) {
   );
 }
 
-export default memo(SystemNode);
+export default memo(CompactionNode);

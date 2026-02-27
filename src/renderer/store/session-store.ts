@@ -5,10 +5,19 @@ import {
   GraphNode,
   GraphEdge,
   LayoutDirection,
+  SessionEndReason,
 } from '../../shared/types';
 import { buildGraph } from './graph-builder';
 
 export type LiveActivity = 'idle' | 'thinking' | 'tool_running' | 'responding' | 'waiting_on_user';
+
+export interface TokenStats {
+  inputTokens: number;
+  outputTokens: number;
+  cacheRead: number;
+  cacheCreation: number;
+  estimatedCost: number;
+}
 
 interface SessionState {
   // Session management
@@ -20,6 +29,10 @@ interface SessionState {
   nodes: GraphNode[];
   edges: GraphEdge[];
 
+  // Cached unfiltered graph (output of buildGraph, before filters)
+  _cachedAllNodes: GraphNode[];
+  _cachedAllEdges: GraphEdge[];
+
   // UI state
   selectedNodeId: string | null;
   layoutDirection: LayoutDirection;
@@ -30,6 +43,9 @@ interface SessionState {
   newNodeIds: Set<string>;
   liveActivity: LiveActivity;
   lastActivityTime: number;
+  collapsedNodes: Set<string>;
+  searchQuery: string;
+  tokenStats: TokenStats;
 
   // Actions
   setSessions: (sessions: SessionInfo[]) => void;
@@ -44,34 +60,175 @@ interface SessionState {
   toggleAutoFollow: () => void;
   clearNewNodes: () => void;
   setIdle: () => void;
+  toggleCollapse: (nodeId: string) => void;
+  setSearchQuery: (query: string) => void;
 }
 
-/**
- * Filter nodes and edges based on the current visibility toggles.
- * Removes nodes whose kind is toggled off, and any edges that
- * reference a removed node.
- */
+// ---------------------------------------------------------------------------
+// Token cost estimation (USD per million tokens, Sonnet 4 pricing as default)
+// ---------------------------------------------------------------------------
+const PRICING: Record<string, { input: number; output: number }> = {
+  'claude-sonnet-4-20250514': { input: 3, output: 15 },
+  'claude-opus-4-20250514': { input: 15, output: 75 },
+  'claude-haiku-4-20250506': { input: 0.8, output: 4 },
+};
+const DEFAULT_PRICING = { input: 3, output: 15 };
+
+function computeTokenStats(messages: JSONLMessage[]): TokenStats {
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let cacheRead = 0;
+  let cacheCreation = 0;
+  let estimatedCost = 0;
+
+  for (const msg of messages) {
+    if (msg.type !== 'assistant') continue;
+    const usage = (msg as any).message?.usage;
+    if (!usage) continue;
+
+    const inTok = usage.input_tokens || 0;
+    const outTok = usage.output_tokens || 0;
+    const cRead = usage.cache_read_input_tokens || 0;
+    const cCreate = usage.cache_creation_input_tokens || 0;
+
+    inputTokens += inTok;
+    outputTokens += outTok;
+    cacheRead += cRead;
+    cacheCreation += cCreate;
+
+    const model = (msg as any).message?.model || '';
+    const price = PRICING[model] || DEFAULT_PRICING;
+    estimatedCost += (inTok * price.input + outTok * price.output) / 1_000_000;
+  }
+
+  return { inputTokens, outputTokens, cacheRead, cacheCreation, estimatedCost };
+}
+
+// ---------------------------------------------------------------------------
+// Descendant counting — single-pass memoized computation
+// ---------------------------------------------------------------------------
+
+function buildChildrenMap(edges: GraphEdge[]): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  for (const e of edges) {
+    const list = map.get(e.source);
+    if (list) list.push(e.target);
+    else map.set(e.source, [e.target]);
+  }
+  return map;
+}
+
+/** Compute descendant counts for ALL nodes in a single bottom-up pass. O(n). */
+function computeAllDescendantCounts(children: Map<string, string[]>): Map<string, number> {
+  const cache = new Map<string, number>();
+
+  function count(nodeId: string): number {
+    const cached = cache.get(nodeId);
+    if (cached !== undefined) return cached;
+    const kids = children.get(nodeId);
+    if (!kids || kids.length === 0) {
+      cache.set(nodeId, 0);
+      return 0;
+    }
+    let total = kids.length;
+    for (const kid of kids) {
+      total += count(kid);
+    }
+    cache.set(nodeId, total);
+    return total;
+  }
+
+  for (const nodeId of children.keys()) {
+    count(nodeId);
+  }
+  return cache;
+}
+
+function getDescendantIds(nodeId: string, children: Map<string, string[]>): Set<string> {
+  const result = new Set<string>();
+  const stack = children.get(nodeId) ? [...children.get(nodeId)!] : [];
+  while (stack.length > 0) {
+    const id = stack.pop()!;
+    result.add(id);
+    const kids = children.get(id);
+    if (kids) stack.push(...kids);
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Filter pipeline: visibility toggles → collapse → search decoration
+// ---------------------------------------------------------------------------
+
 function applyFilters(
   nodes: GraphNode[],
   edges: GraphEdge[],
   showThinking: boolean,
   showText: boolean,
   showSystem: boolean,
+  collapsedNodes: Set<string>,
+  searchQuery: string,
 ): { nodes: GraphNode[]; edges: GraphEdge[] } {
-  const filteredNodes = nodes.filter((node) => {
+  // 1. Visibility filter (compaction + session_end always pass through)
+  let filtered = nodes.filter((node) => {
     if (!showThinking && node.kind === 'thinking') return false;
     if (!showText && node.kind === 'text') return false;
     if (!showSystem && node.kind === 'system') return false;
     return true;
   });
 
-  const validIds = new Set(filteredNodes.map((n) => n.id));
-
-  const filteredEdges = edges.filter(
-    (edge) => validIds.has(edge.source) && validIds.has(edge.target),
+  let validIds = new Set(filtered.map((n) => n.id));
+  let filteredEdges = edges.filter(
+    (e) => validIds.has(e.source) && validIds.has(e.target),
   );
 
-  return { nodes: filteredNodes, edges: filteredEdges };
+  // 2. Collapse: hide descendants of collapsed nodes
+  const children = buildChildrenMap(filteredEdges);
+  const descendantCounts = computeAllDescendantCounts(children);
+
+  if (collapsedNodes.size > 0) {
+    const hiddenIds = new Set<string>();
+    for (const collapsedId of collapsedNodes) {
+      if (!validIds.has(collapsedId)) continue;
+      for (const descendant of getDescendantIds(collapsedId, children)) {
+        hiddenIds.add(descendant);
+      }
+    }
+
+    // Annotate nodes with childCount and collapsed flag before filtering
+    filtered = filtered.map((node) => ({
+      ...node,
+      childCount: descendantCounts.get(node.id) ?? 0,
+      collapsed: collapsedNodes.has(node.id),
+    }));
+
+    // Remove hidden descendants
+    filtered = filtered.filter((n) => !hiddenIds.has(n.id));
+    validIds = new Set(filtered.map((n) => n.id));
+    filteredEdges = filteredEdges.filter(
+      (e) => validIds.has(e.source) && validIds.has(e.target),
+    );
+  } else {
+    filtered = filtered.map((node) => ({
+      ...node,
+      childCount: descendantCounts.get(node.id) ?? 0,
+      collapsed: false,
+    }));
+  }
+
+  // 3. Search: mark matching nodes (only when there's an active query)
+  if (searchQuery.length > 0) {
+    const q = searchQuery.toLowerCase();
+    filtered = filtered.map((node) => ({
+      ...node,
+      searchMatch:
+        node.label.toLowerCase().includes(q) ||
+        node.detail.toLowerCase().includes(q) ||
+        (node.toolName || '').toLowerCase().includes(q),
+    }));
+  }
+
+  return { nodes: filtered, edges: filteredEdges };
 }
 
 /**
@@ -122,6 +279,44 @@ function detectActivity(messages: JSONLMessage[]): LiveActivity {
   return 'idle';
 }
 
+// ---------------------------------------------------------------------------
+// fullRebuild: runs buildGraph + applyFilters. Use when rawMessages change.
+// filterOnly: reuses cached buildGraph output. Use for filter/search/collapse.
+// ---------------------------------------------------------------------------
+
+function fullRebuild(state: SessionState, messages: JSONLMessage[]) {
+  const activeSession = state.sessions.find(s => s.filePath === state.activeSessionPath);
+  const endReason: SessionEndReason | undefined = activeSession?.endReason;
+
+  const { nodes: allNodes, edges: allEdges } = buildGraph(messages, endReason);
+  const { nodes, edges } = applyFilters(
+    allNodes, allEdges,
+    state.showThinking, state.showText, state.showSystem,
+    state.collapsedNodes, state.searchQuery,
+  );
+  return { allNodes, allEdges, nodes, edges };
+}
+
+function filterOnly(state: SessionState, overrides: {
+  showThinking?: boolean;
+  showText?: boolean;
+  showSystem?: boolean;
+  collapsedNodes?: Set<string>;
+  searchQuery?: string;
+}) {
+  return applyFilters(
+    state._cachedAllNodes,
+    state._cachedAllEdges,
+    overrides.showThinking ?? state.showThinking,
+    overrides.showText ?? state.showText,
+    overrides.showSystem ?? state.showSystem,
+    overrides.collapsedNodes ?? state.collapsedNodes,
+    overrides.searchQuery ?? state.searchQuery,
+  );
+}
+
+const EMPTY_STATS: TokenStats = { inputTokens: 0, outputTokens: 0, cacheRead: 0, cacheCreation: 0, estimatedCost: 0 };
+
 export const useSessionStore = create<SessionState>((set, get) => ({
   // Session management
   sessions: [],
@@ -131,6 +326,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   rawMessages: [],
   nodes: [],
   edges: [],
+
+  // Cached unfiltered graph
+  _cachedAllNodes: [],
+  _cachedAllEdges: [],
 
   // UI state
   selectedNodeId: null,
@@ -142,38 +341,46 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   newNodeIds: new Set<string>(),
   liveActivity: 'idle' as LiveActivity,
   lastActivityTime: 0,
+  collapsedNodes: new Set<string>(),
+  searchQuery: '',
+  tokenStats: EMPTY_STATS,
 
   // ── Actions ──────────────────────────────────────────────────────────
 
   setSessions: (sessions) => set({ sessions }),
 
-  setActiveSession: (path) =>
+  setActiveSession: (path) => {
     set({
       activeSessionPath: path,
+      rawMessages: [],
+      nodes: [],
+      edges: [],
+      _cachedAllNodes: [],
+      _cachedAllEdges: [],
       selectedNodeId: null,
       newNodeIds: new Set<string>(),
-    }),
+      collapsedNodes: new Set<string>(),
+      searchQuery: '',
+      tokenStats: EMPTY_STATS,
+    });
+  },
 
   setMessages: (messages) => {
-    const { showThinking, showText, showSystem } = get();
-    const { nodes: allNodes, edges: allEdges } = buildGraph(messages);
-    const { nodes, edges } = applyFilters(
-      allNodes,
-      allEdges,
-      showThinking,
-      showText,
-      showSystem,
-    );
-
+    const state = get();
+    const { allNodes, allEdges, nodes, edges } = fullRebuild(state, messages);
     const activity = detectActivity(messages);
+    const tokenStats = computeTokenStats(messages);
 
     set({
       rawMessages: messages,
+      _cachedAllNodes: allNodes,
+      _cachedAllEdges: allEdges,
       nodes,
       edges,
       newNodeIds: new Set<string>(),
       liveActivity: activity,
       lastActivityTime: Date.now(),
+      tokenStats,
     });
   },
 
@@ -181,39 +388,40 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const state = get();
     const combined = [...state.rawMessages, ...messages];
 
-    const previousIds = new Set(state.nodes.map((n) => n.id));
-    const { nodes: allNodes, edges: allEdges } = buildGraph(combined);
-    const { nodes: filteredNodes, edges: filteredEdges } = applyFilters(
-      allNodes,
-      allEdges,
-      state.showThinking,
-      state.showText,
-      state.showSystem,
-    );
+    let result;
+    try {
+      result = fullRebuild(state, combined);
+    } catch (err) {
+      console.error(`[appendMessages] CRASH in fullRebuild: ${String(err)}`);
+      return;
+    }
 
-    // Compute new node IDs: present in the fresh build but absent before
+    const previousIds = new Set(state.nodes.map((n) => n.id));
     const newIds = new Set<string>();
-    for (const node of filteredNodes) {
+    for (const node of result.nodes) {
       if (!previousIds.has(node.id)) {
         newIds.add(node.id);
       }
     }
 
-    // Mark nodes that just appeared with isNew = true
-    const nodesWithFlags = filteredNodes.map((node) => ({
+    const nodesWithFlags = result.nodes.map((node) => ({
       ...node,
       isNew: newIds.has(node.id),
     }));
 
     const activity = detectActivity(combined);
+    const tokenStats = computeTokenStats(combined);
 
     set({
       rawMessages: combined,
+      _cachedAllNodes: result.allNodes,
+      _cachedAllEdges: result.allEdges,
       nodes: nodesWithFlags,
-      edges: filteredEdges,
+      edges: result.edges,
       newNodeIds: newIds,
       liveActivity: activity,
       lastActivityTime: Date.now(),
+      tokenStats,
     });
   },
 
@@ -221,45 +429,25 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   setLayoutDirection: (dir) => set({ layoutDirection: dir }),
 
+  // Filter toggles use filterOnly — skips buildGraph entirely
   toggleShowThinking: () => {
     const state = get();
     const next = !state.showThinking;
-    const { nodes: allNodes, edges: allEdges } = buildGraph(state.rawMessages);
-    const { nodes, edges } = applyFilters(
-      allNodes,
-      allEdges,
-      next,
-      state.showText,
-      state.showSystem,
-    );
+    const { nodes, edges } = filterOnly(state, { showThinking: next });
     set({ showThinking: next, nodes, edges });
   },
 
   toggleShowText: () => {
     const state = get();
     const next = !state.showText;
-    const { nodes: allNodes, edges: allEdges } = buildGraph(state.rawMessages);
-    const { nodes, edges } = applyFilters(
-      allNodes,
-      allEdges,
-      state.showThinking,
-      next,
-      state.showSystem,
-    );
+    const { nodes, edges } = filterOnly(state, { showText: next });
     set({ showText: next, nodes, edges });
   },
 
   toggleShowSystem: () => {
     const state = get();
     const next = !state.showSystem;
-    const { nodes: allNodes, edges: allEdges } = buildGraph(state.rawMessages);
-    const { nodes, edges } = applyFilters(
-      allNodes,
-      allEdges,
-      state.showThinking,
-      state.showText,
-      next,
-    );
+    const { nodes, edges } = filterOnly(state, { showSystem: next });
     set({ showSystem: next, nodes, edges });
   },
 
@@ -275,4 +463,20 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   setIdle: () => set({ liveActivity: 'idle' as LiveActivity }),
+
+  toggleCollapse: (nodeId: string) => {
+    const state = get();
+    const next = new Set(state.collapsedNodes);
+    if (next.has(nodeId)) next.delete(nodeId);
+    else next.add(nodeId);
+
+    const { nodes, edges } = filterOnly(state, { collapsedNodes: next });
+    set({ collapsedNodes: next, nodes, edges });
+  },
+
+  setSearchQuery: (query: string) => {
+    const state = get();
+    const { nodes, edges } = filterOnly(state, { searchQuery: query });
+    set({ searchQuery: query, nodes, edges });
+  },
 }));

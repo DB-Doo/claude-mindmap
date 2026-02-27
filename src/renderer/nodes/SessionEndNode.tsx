@@ -2,26 +2,24 @@ import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { motion } from 'framer-motion';
 import type { GraphNode } from '../../shared/types';
-import CollapseButton from './CollapseButton';
 
-function SystemNode({ data, id }: NodeProps) {
+function SessionEndNode({ data }: NodeProps) {
   const gn = data as unknown as GraphNode;
   const dimmed = gn.searchMatch === false && gn.searchMatch !== undefined;
+  const isCompacted = gn.endReason === 'compacted';
   const needsAnimation = gn.isNew || dimmed;
 
-  const className = `mind-map-node system-node ${gn.isNew ? 'node-new' : ''} ${gn.searchMatch ? 'search-match' : ''}`;
-  const style = { '--pulse-color': '#475569' } as React.CSSProperties;
+  const className = `mind-map-node session-end-node ${isCompacted ? 'session-end-compacted' : 'session-end-terminated'} ${gn.searchMatch ? 'search-match' : ''}`;
+  const style = { '--pulse-color': isCompacted ? '#fbbf24' : '#475569' } as React.CSSProperties;
 
   const content = (
     <>
       <Handle type="target" position={Position.Top} />
       <div className="node-header">
-        <span className="node-icon">{'\u23F1'}</span>
-        <span>System</span>
+        <span className="node-icon">{isCompacted ? '\uD83D\uDCE6' : '\u23F9'}</span>
+        <span>{gn.label}</span>
       </div>
-      <div className="node-label">{gn.label}</div>
-      <Handle type="source" position={Position.Bottom} />
-      <CollapseButton nodeId={id} childCount={gn.childCount || 0} collapsed={gn.collapsed || false} />
+      <div className="node-label">{gn.detail}</div>
     </>
   );
 
@@ -46,4 +44,4 @@ function SystemNode({ data, id }: NodeProps) {
   );
 }
 
-export default memo(SystemNode);
+export default memo(SessionEndNode);
