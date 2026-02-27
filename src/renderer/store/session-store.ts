@@ -295,6 +295,10 @@ export function detectActivity(messages: JSONLMessage[]): ActivityInfo {
         return { activity: 'idle' };
       }
 
+      // Check stop_reason — if the API response is complete, Claude is done
+      const stopReason = (msg as any).message?.stop_reason;
+      if (stopReason === 'end_turn') return { activity: 'waiting_on_user' };
+
       if (last.type === 'thinking') return { activity: 'thinking' };
       if (last.type === 'tool_use') return { activity: 'tool_running', detail: last.name };
       if (last.type === 'text') return { activity: 'responding' };
