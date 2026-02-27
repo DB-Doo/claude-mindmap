@@ -128,16 +128,25 @@ export function useAutoLayout(
 
     // Count new nodes not in cache and check if any cached nodes were removed
     let newCount = 0;
+    let newNodesScattered = false; // true if new nodes are interspersed with cached ones
+    let sawNewNode = false;
     for (const n of graphNodes) {
-      if (!cache.has(n.id)) newCount++;
+      if (!cache.has(n.id)) {
+        newCount++;
+        sawNewNode = true;
+      } else if (sawNewNode) {
+        // A cached node appears after a new node — new nodes are not just at the tail.
+        // This means a filter toggle re-added nodes, not streaming new messages.
+        newNodesScattered = true;
+      }
     }
     const currentIds = new Set(graphNodes.map(n => n.id));
     let removedCount = 0;
     for (const key of cache.keys()) {
       if (!currentIds.has(key)) removedCount++;
     }
-    // If nodes were removed (filter toggle), force full relayout
-    const isIncremental = removedCount === 0 && newCount > 0 && newCount < Math.max(graphNodes.length * 0.3, 20);
+    // Full relayout when: nodes removed, new nodes scattered (filter toggle), or too many new nodes
+    const isIncremental = removedCount === 0 && !newNodesScattered && newCount > 0 && newCount < Math.max(graphNodes.length * 0.3, 20);
 
     if (!isIncremental) {
       // Full conversation layout
