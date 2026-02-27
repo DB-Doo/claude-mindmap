@@ -238,6 +238,7 @@ function parseHistoryFile(historyPath: string): Map<string, HistoryEntry> {
 }
 
 const ACTIVE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+const LOCK_STALE_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes — lock files older than this are stale
 
 /**
  * Check if a session has a lock file, indicating it's currently running.
@@ -252,12 +253,17 @@ function hasLockFile(sessionId: string, claudeDir: string): boolean {
  * Detect how/why a session ended by reading the tail of the JSONL file.
  */
 function detectEndReason(filePath: string, mtimeMs: number, sessionId: string, claudeDir: string): SessionEndReason {
-  // Lock file present = definitely active
+  // Lock file present = likely active, but lock files can be orphaned if
+  // Claude Code crashes. Cross-check: if the JSONL hasn't been modified in
+  // 30 minutes, the lock file is stale and the session is dead.
   if (hasLockFile(sessionId, claudeDir)) {
-    return 'active';
+    if (Date.now() - mtimeMs < LOCK_STALE_THRESHOLD_MS) {
+      return 'active';
+    }
+    // Stale lock — fall through to end-reason detection
   }
 
-  // Still actively being written to?
+  // Still actively being written to (even without a lock file)?
   if (Date.now() - mtimeMs < ACTIVE_THRESHOLD_MS) {
     return 'active';
   }
