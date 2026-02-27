@@ -10,7 +10,7 @@ function TextNode({ data, id }: NodeProps) {
   const dimmed = gn.searchMatch === false && gn.searchMatch !== undefined;
   const needsAnimation = gn.isNew || dimmed;
 
-  const className = `mind-map-node text-node ${gn.isNew ? 'node-new' : ''} ${gn.searchMatch ? 'search-match' : ''}`;
+  const className = `mind-map-node text-node ${gn.isFirstResponse ? 'text-primary' : ''} ${gn.isNew ? 'node-new' : ''} ${gn.searchMatch ? 'search-match' : ''}`;
   const style = { '--pulse-color': '#6b7280' } as React.CSSProperties;
 
   const content = (

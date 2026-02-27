@@ -159,6 +159,9 @@ export function buildGraph(
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
 
+  // Track first text response after each user message
+  let awaitingFirstResponse = false;
+
   // Maps a message uuid to the id(s) of nodes created for it.
   // We keep an array to handle messages that produce multiple nodes
   // (e.g. assistant messages with several content blocks).
@@ -223,6 +226,7 @@ export function buildGraph(
           },
           msg.uuid,
         );
+        awaitingFirstResponse = true;
         continue;
       }
 
@@ -279,6 +283,7 @@ export function buildGraph(
         },
         msg.uuid,
       );
+      awaitingFirstResponse = true;
       continue;
     }
 
@@ -318,6 +323,8 @@ export function buildGraph(
           }
 
           case 'text': {
+            const isFirst = awaitingFirstResponse;
+            if (isFirst) awaitingFirstResponse = false;
             addNode(
               {
                 id: `${msg.uuid}-${i}`,
@@ -329,6 +336,7 @@ export function buildGraph(
                 status: null,
                 timestamp: msg.timestamp,
                 isNew: false,
+                isFirstResponse: isFirst,
                 inputTokens,
                 outputTokens,
               },

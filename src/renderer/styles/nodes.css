@@ -167,8 +167,23 @@
 
 /* ============================================================
    Tool-Specific Border Colors and Glow
-   Each tool class sets border-color and a matching neon box-shadow
+   Each tool class sets border-color and a matching neon box-shadow.
+   Tools are visually de-emphasized to let text responses stand out.
    ============================================================ */
+
+/* Base tool styling — slightly muted */
+[class*="tool-"] .node-label {
+  -webkit-line-clamp: 4;
+  font-size: 11px;
+}
+
+[class*="tool-"] {
+  opacity: 0.85;
+}
+
+[class*="tool-"]:hover {
+  opacity: 1;
+}
 
 /* Bash / Terminal — orange */
 .tool-bash {
@@ -282,11 +297,12 @@
   color: var(--neon-gold);
 }
 
-/* AskUserQuestion — pink, stands out */
+/* AskUserQuestion — pink, stands out (overrides tool muting) */
 .tool-askuserquestion {
   border-color: #f472b6;
   border-width: 2px;
   box-shadow: 0 0 12px rgba(244, 114, 182, 0.25);
+  opacity: 1;
   background: linear-gradient(
     135deg,
     rgba(244, 114, 182, 0.08) 0%,
@@ -436,6 +452,33 @@
 
 .text-node .node-header {
   color: var(--neon-gray);
+}
+
+/* First text response after a user message — prominent */
+.text-node.text-primary {
+  border-color: #60a5fa;
+  border-left: 3px solid #60a5fa;
+  box-shadow: 0 0 10px rgba(96, 165, 250, 0.2);
+  background: linear-gradient(
+    135deg,
+    rgba(96, 165, 250, 0.08) 0%,
+    var(--bg-secondary) 60%
+  );
+}
+
+.text-node.text-primary:hover {
+  box-shadow: 0 0 16px rgba(96, 165, 250, 0.35);
+}
+
+.text-node.text-primary .node-header {
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+.text-node.text-primary .node-label {
+  font-size: 13px;
+  color: #e2e8f0;
+  -webkit-line-clamp: 12;
 }
 
 /* System node — very muted, smaller */

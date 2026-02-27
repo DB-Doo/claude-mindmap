@@ -113,6 +113,8 @@ export interface GraphNode {
   /** For AskUserQuestion nodes: the options and user's choice. */
   questionOptions?: { label: string; chosen: boolean }[];
   questionText?: string;
+  /** True when this text node is the first response after a user message. */
+  isFirstResponse?: boolean;
   /** Pre-computed lowercase search text (label + detail + toolName). */
   _searchText?: string;
 }
