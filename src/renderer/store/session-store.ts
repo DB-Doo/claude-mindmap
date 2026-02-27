@@ -44,6 +44,7 @@ interface SessionState {
   showSystem: boolean;
   autoFollow: boolean;
   centerRequested: boolean;
+  centerStartRequested: boolean;
   hasNewNodesSinceManualPan: boolean;
   newNodeIds: Set<string>;
   liveActivity: LiveActivity;
@@ -64,6 +65,7 @@ interface SessionState {
   toggleShowSystem: () => void;
   toggleAutoFollow: () => void;
   requestCenter: () => void;
+  requestCenterStart: () => void;
   clearCenterRequest: () => void;
   clearNewNodes: () => void;
   setIdle: () => void;
@@ -240,6 +242,15 @@ function applyFilters(
  * Walk backwards from the end to find the last meaningful message type.
  */
 function detectActivity(messages: JSONLMessage[]): LiveActivity {
+  // If the last message is more than 30 seconds old, the session isn't live
+  if (messages.length > 0) {
+    const last = messages[messages.length - 1];
+    if (last.timestamp) {
+      const age = Date.now() - new Date(last.timestamp).getTime();
+      if (age > 30_000) return 'idle';
+    }
+  }
+
   let sawSystem = false;
 
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -387,6 +398,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   showSystem: true,
   autoFollow: true,
   centerRequested: false,
+  centerStartRequested: false,
   hasNewNodesSinceManualPan: false,
   newNodeIds: new Set<string>(),
   liveActivity: 'idle' as LiveActivity,
@@ -434,6 +446,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         lastActivityTime: Date.now(),
         tokenStats,
         centerRequested: false,
+        centerStartRequested: false,
         hasNewNodesSinceManualPan: false,
       });
     } else {
@@ -450,6 +463,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         searchQuery: '',
         tokenStats: EMPTY_STATS,
         centerRequested: false,
+        centerStartRequested: false,
         hasNewNodesSinceManualPan: false,
       });
     }
@@ -574,8 +588,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   requestCenter: () => set({ centerRequested: true, hasNewNodesSinceManualPan: false }),
+  requestCenterStart: () => set({ centerStartRequested: true }),
 
-  clearCenterRequest: () => set({ centerRequested: false }),
+  clearCenterRequest: () => set({ centerRequested: false, centerStartRequested: false }),
 
   clearNewNodes: () => {
     const state = get();

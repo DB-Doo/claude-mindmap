@@ -100,6 +100,7 @@ export default function Toolbar() {
   const toggleShowSystem = useSessionStore(s => s.toggleShowSystem);
   const toggleAutoFollow = useSessionStore(s => s.toggleAutoFollow);
   const requestCenter = useSessionStore(s => s.requestCenter);
+  const requestCenterStart = useSessionStore(s => s.requestCenterStart);
   const nodeCount = useSessionStore(s => s.nodes.length);
   const searchQuery = useSessionStore(s => s.searchQuery);
   const setSearchQuery = useSessionStore(s => s.setSearchQuery);
@@ -140,12 +141,17 @@ export default function Toolbar() {
         Auto-follow
       </button>
       {nodeCount > 0 && (
-        <button
-          style={hasNewNodes ? recenterAlertBtn : recenterBtn}
-          onClick={requestCenter}
-        >
-          Recenter{hasNewNodes ? ' *' : ''}
-        </button>
+        <>
+          <button style={recenterBtn} onClick={requestCenterStart}>
+            Start
+          </button>
+          <button
+            style={hasNewNodes ? recenterAlertBtn : recenterBtn}
+            onClick={requestCenter}
+          >
+            Recenter{hasNewNodes ? ' *' : ''}
+          </button>
+        </>
       )}
       <div style={dividerStyle} />
       <input
@@ -164,6 +170,9 @@ export default function Toolbar() {
             <span>In: {formatTokens(tokenStats.inputTokens)}</span>
             <span>Out: {formatTokens(tokenStats.outputTokens)}</span>
             <span style={costStyle}>${tokenStats.estimatedCost.toFixed(2)}</span>
+            <span style={{ color: '#38bdf8' }}>
+              {((tokenStats.inputTokens + tokenStats.outputTokens) / 1_000_000 * 0.5).toFixed(1)}ml
+            </span>
           </>
         )}
       </div>

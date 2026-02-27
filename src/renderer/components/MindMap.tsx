@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   ReactFlow,
   Background,
@@ -40,6 +40,7 @@ export default function MindMap() {
   const selectNode = useSessionStore(s => s.selectNode);
   const autoFollow = useSessionStore(s => s.autoFollow);
   const centerRequested = useSessionStore(s => s.centerRequested);
+  const centerStartRequested = useSessionStore(s => s.centerStartRequested);
   const clearCenterRequest = useSessionStore(s => s.clearCenterRequest);
   const newNodeIds = useSessionStore(s => s.newNodeIds);
   const clearNewNodes = useSessionStore(s => s.clearNewNodes);
@@ -100,6 +101,24 @@ export default function MindMap() {
     clearCenterRequest();
   }, [centerRequested, nodes, setCenter, getZoom, clearCenterRequest]);
 
+  // Center on first node: triggered by Start button
+  useEffect(() => {
+    if (!centerStartRequested || nodes.length === 0) return;
+
+    const firstNode = nodes[0];
+    if (firstNode && firstNode.position) {
+      const nodeWidth = firstNode.measured?.width ?? firstNode.width ?? 200;
+      const nodeHeight = firstNode.measured?.height ?? firstNode.height ?? 80;
+      const x = firstNode.position.x + nodeWidth / 2;
+      const y = firstNode.position.y + nodeHeight / 2;
+      setTimeout(() => {
+        setCenter(x, y, { duration: 400, zoom: 1 });
+      }, 100);
+    }
+
+    clearCenterRequest();
+  }, [centerStartRequested, nodes, setCenter, clearCenterRequest]);
+
   // Clear isNew flags after animation
   useEffect(() => {
     if (newNodeIds.size > 0) {
@@ -116,6 +135,24 @@ export default function MindMap() {
     selectNode(null);
   }, [selectNode]);
 
+  // Constrain panning to the area around nodes (prevents drifting into void)
+  const translateExtent = useMemo((): [[number, number], [number, number]] => {
+    if (nodes.length === 0) return [[-Infinity, -Infinity], [Infinity, Infinity]];
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const n of nodes) {
+      const x = n.position.x;
+      const y = n.position.y;
+      const w = (n.width as number) ?? 340;
+      const h = (n.height as number) ?? 100;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x + w > maxX) maxX = x + w;
+      if (y + h > maxY) maxY = y + h;
+    }
+    const pad = 800;
+    return [[minX - pad, minY - pad], [maxX + pad, maxY + pad]];
+  }, [nodes]);
+
   return (
     <ReactFlow
       nodes={nodes}
@@ -125,6 +162,7 @@ export default function MindMap() {
       onNodeClick={onNodeClick}
       onPaneClick={onPaneClick}
       fitView
+      translateExtent={translateExtent}
       minZoom={0.1}
       maxZoom={2}
       defaultEdgeOptions={{ animated: false }}
@@ -146,7 +184,6 @@ export default function MindMap() {
         style={{ backgroundColor: '#0d0d14' }}
         maskColor="rgba(10, 10, 15, 0.7)"
         pannable
-        zoomable
       />
     </ReactFlow>
   );
