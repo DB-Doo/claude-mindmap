@@ -33,6 +33,9 @@ interface SessionState {
   _cachedAllNodes: GraphNode[];
   _cachedAllEdges: GraphEdge[];
 
+  // Per-session message cache (survives session switches)
+  _sessionCache: Map<string, JSONLMessage[]>;
+
   // UI state
   selectedNodeId: string | null;
   layoutDirection: LayoutDirection;
@@ -40,6 +43,8 @@ interface SessionState {
   showText: boolean;
   showSystem: boolean;
   autoFollow: boolean;
+  centerRequested: boolean;
+  hasNewNodesSinceManualPan: boolean;
   newNodeIds: Set<string>;
   liveActivity: LiveActivity;
   lastActivityTime: number;
@@ -58,6 +63,8 @@ interface SessionState {
   toggleShowText: () => void;
   toggleShowSystem: () => void;
   toggleAutoFollow: () => void;
+  requestCenter: () => void;
+  clearCenterRequest: () => void;
   clearNewNodes: () => void;
   setIdle: () => void;
   toggleCollapse: (nodeId: string) => void;
@@ -221,10 +228,7 @@ function applyFilters(
     const q = searchQuery.toLowerCase();
     filtered = filtered.map((node) => ({
       ...node,
-      searchMatch:
-        node.label.toLowerCase().includes(q) ||
-        node.detail.toLowerCase().includes(q) ||
-        (node.toolName || '').toLowerCase().includes(q),
+      searchMatch: (node._searchText || '').includes(q),
     }));
   }
 
@@ -280,6 +284,45 @@ function detectActivity(messages: JSONLMessage[]): LiveActivity {
 }
 
 // ---------------------------------------------------------------------------
+// Message windowing — only show the last N user turns for active sessions
+// ---------------------------------------------------------------------------
+
+const MAX_USER_TURNS = 10;
+
+/**
+ * Trim messages to only include the last MAX_USER_TURNS user messages
+ * and everything that follows each (assistant responses, tool calls, etc).
+ * Returns the full array if there are fewer than MAX_USER_TURNS user messages.
+ */
+function windowMessages(messages: JSONLMessage[], isActive: boolean): JSONLMessage[] {
+  if (!isActive) return messages;
+
+  // Find indices of "real" user messages (ones that produce visible nodes)
+  const userIndices: number[] = [];
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+    if (msg.type !== 'user') continue;
+    const content = (msg as any).message?.content;
+    if (content == null) continue;
+    // Skip tool_result-only messages (they don't produce nodes)
+    if (Array.isArray(content)) {
+      const hasOnlyToolResults = content.length > 0 && content.every((b: any) => b.type === 'tool_result');
+      if (hasOnlyToolResults) continue;
+      // Skip if no text blocks
+      const hasText = content.some((b: any) => b.type === 'text' && b.text?.trim());
+      if (!hasText) continue;
+    }
+    userIndices.push(i);
+  }
+
+  if (userIndices.length <= MAX_USER_TURNS) return messages;
+
+  // Start from the (N-th from last) user message
+  const cutoff = userIndices[userIndices.length - MAX_USER_TURNS];
+  return messages.slice(cutoff);
+}
+
+// ---------------------------------------------------------------------------
 // fullRebuild: runs buildGraph + applyFilters. Use when rawMessages change.
 // filterOnly: reuses cached buildGraph output. Use for filter/search/collapse.
 // ---------------------------------------------------------------------------
@@ -287,8 +330,10 @@ function detectActivity(messages: JSONLMessage[]): LiveActivity {
 function fullRebuild(state: SessionState, messages: JSONLMessage[]) {
   const activeSession = state.sessions.find(s => s.filePath === state.activeSessionPath);
   const endReason: SessionEndReason | undefined = activeSession?.endReason;
+  const isActive = endReason === 'active';
 
-  const { nodes: allNodes, edges: allEdges } = buildGraph(messages, endReason);
+  const windowed = windowMessages(messages, isActive);
+  const { nodes: allNodes, edges: allEdges } = buildGraph(windowed, endReason);
   const { nodes, edges } = applyFilters(
     allNodes, allEdges,
     state.showThinking, state.showText, state.showSystem,
@@ -331,6 +376,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   _cachedAllNodes: [],
   _cachedAllEdges: [],
 
+  // Per-session message cache
+  _sessionCache: new Map<string, JSONLMessage[]>(),
+
   // UI state
   selectedNodeId: null,
   layoutDirection: 'TB',
@@ -338,6 +386,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   showText: true,
   showSystem: true,
   autoFollow: true,
+  centerRequested: false,
+  hasNewNodesSinceManualPan: false,
   newNodeIds: new Set<string>(),
   liveActivity: 'idle' as LiveActivity,
   lastActivityTime: 0,
@@ -350,19 +400,59 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   setSessions: (sessions) => set({ sessions }),
 
   setActiveSession: (path) => {
-    set({
-      activeSessionPath: path,
-      rawMessages: [],
-      nodes: [],
-      edges: [],
-      _cachedAllNodes: [],
-      _cachedAllEdges: [],
-      selectedNodeId: null,
-      newNodeIds: new Set<string>(),
-      collapsedNodes: new Set<string>(),
-      searchQuery: '',
-      tokenStats: EMPTY_STATS,
-    });
+    const state = get();
+    const cache = state._sessionCache;
+
+    // Save current session's messages to cache before switching away
+    if (state.activeSessionPath && state.rawMessages.length > 0) {
+      cache.set(state.activeSessionPath, state.rawMessages);
+      // LRU eviction: keep at most 10 cached sessions
+      if (cache.size > 10) {
+        const oldest = cache.keys().next().value;
+        if (oldest) cache.delete(oldest);
+      }
+    }
+
+    // Try to restore from cache for instant display
+    const cached = cache.get(path);
+    if (cached && cached.length > 0) {
+      const { allNodes, allEdges, nodes, edges } = fullRebuild(state, cached);
+      const activity = detectActivity(cached);
+      const tokenStats = computeTokenStats(cached);
+      set({
+        activeSessionPath: path,
+        rawMessages: cached,
+        _cachedAllNodes: allNodes,
+        _cachedAllEdges: allEdges,
+        nodes,
+        edges,
+        selectedNodeId: null,
+        newNodeIds: new Set<string>(),
+        collapsedNodes: new Set<string>(),
+        searchQuery: '',
+        liveActivity: activity,
+        lastActivityTime: Date.now(),
+        tokenStats,
+        centerRequested: false,
+        hasNewNodesSinceManualPan: false,
+      });
+    } else {
+      set({
+        activeSessionPath: path,
+        rawMessages: [],
+        nodes: [],
+        edges: [],
+        _cachedAllNodes: [],
+        _cachedAllEdges: [],
+        selectedNodeId: null,
+        newNodeIds: new Set<string>(),
+        collapsedNodes: new Set<string>(),
+        searchQuery: '',
+        tokenStats: EMPTY_STATS,
+        centerRequested: false,
+        hasNewNodesSinceManualPan: false,
+      });
+    }
   },
 
   setMessages: (messages) => {
@@ -370,6 +460,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const { allNodes, allEdges, nodes, edges } = fullRebuild(state, messages);
     const activity = detectActivity(messages);
     const tokenStats = computeTokenStats(messages);
+
+    // Keep session cache current
+    if (state.activeSessionPath && messages.length > 0) {
+      state._sessionCache.set(state.activeSessionPath, messages);
+    }
 
     set({
       rawMessages: messages,
@@ -410,7 +505,21 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     }));
 
     const activity = detectActivity(combined);
-    const tokenStats = computeTokenStats(combined);
+
+    // Incremental token stats: only compute delta from new messages
+    const delta = computeTokenStats(messages);
+    const tokenStats: TokenStats = {
+      inputTokens: state.tokenStats.inputTokens + delta.inputTokens,
+      outputTokens: state.tokenStats.outputTokens + delta.outputTokens,
+      cacheRead: state.tokenStats.cacheRead + delta.cacheRead,
+      cacheCreation: state.tokenStats.cacheCreation + delta.cacheCreation,
+      estimatedCost: state.tokenStats.estimatedCost + delta.estimatedCost,
+    };
+
+    // Keep session cache current
+    if (state.activeSessionPath) {
+      state._sessionCache.set(state.activeSessionPath, combined);
+    }
 
     set({
       rawMessages: combined,
@@ -422,6 +531,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       liveActivity: activity,
       lastActivityTime: Date.now(),
       tokenStats,
+      hasNewNodesSinceManualPan: newIds.size > 0 && !state.autoFollow
+        ? true
+        : state.hasNewNodesSinceManualPan,
     });
   },
 
@@ -451,7 +563,19 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set({ showSystem: next, nodes, edges });
   },
 
-  toggleAutoFollow: () => set((s) => ({ autoFollow: !s.autoFollow })),
+  toggleAutoFollow: () => {
+    const state = get();
+    const next = !state.autoFollow;
+    if (next) {
+      set({ autoFollow: true, centerRequested: true, hasNewNodesSinceManualPan: false });
+    } else {
+      set({ autoFollow: false });
+    }
+  },
+
+  requestCenter: () => set({ centerRequested: true, hasNewNodesSinceManualPan: false }),
+
+  clearCenterRequest: () => set({ centerRequested: false }),
 
   clearNewNodes: () => {
     const state = get();

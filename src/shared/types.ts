@@ -102,6 +102,8 @@ export interface GraphNode {
   compactTokens?: number;
   /** For session_end nodes: why the session ended. */
   endReason?: SessionEndReason;
+  /** Pre-computed lowercase search text (label + detail + toolName). */
+  _searchText?: string;
 }
 
 export interface GraphEdge {

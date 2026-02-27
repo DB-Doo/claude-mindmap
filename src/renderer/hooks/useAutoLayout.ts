@@ -1,102 +1,214 @@
-import { useMemo } from 'react';
-import dagre from 'dagre';
+import { useMemo, useRef } from 'react';
 import { type Node, type Edge } from '@xyflow/react';
-import { GraphNode, GraphEdge, LayoutDirection } from '../../shared/types';
+import { GraphNode, GraphEdge } from '../../shared/types';
 
-const NODE_WIDTH = 280;
-const BASE_HEIGHT = 50; // header + padding
-const LINE_HEIGHT = 17; // ~12px font * 1.4 line-height
-const CHARS_PER_LINE = 36; // rough chars per line at 12px in 280px width
-const MAX_LINES = 8; // matches -webkit-line-clamp in CSS
+const NODE_WIDTH = 340; // matches CSS max-width on .mind-map-node
+const BASE_HEIGHT = 50;
+const LINE_HEIGHT = 17;
+const CHARS_PER_LINE = 36;
+const MAX_LINES = 8;
+const COL_GAP = 120;  // horizontal gap between columns
+const ROW_GAP = 35;   // vertical gap between nodes in a column
+const TOP_MARGIN = 40;
 
-/**
- * Estimate the rendered height of a node based on its label text
- * so dagre can space nodes properly and avoid overlapping.
- */
 function estimateNodeHeight(label: string): number {
   const lines = Math.min(Math.ceil(label.length / CHARS_PER_LINE), MAX_LINES);
   return BASE_HEIGHT + lines * LINE_HEIGHT;
 }
 
-/**
- * Maps a GraphNode kind to the corresponding React Flow custom node type.
- */
 function nodeTypeFromKind(kind: GraphNode['kind']): string {
   switch (kind) {
-    case 'tool_use':
-      return 'toolNode';
-    case 'user':
-      return 'userNode';
-    case 'thinking':
-      return 'thinkingNode';
-    case 'text':
-      return 'textNode';
-    case 'compaction':
-      return 'compactionNode';
-    case 'session_end':
-      return 'sessionEndNode';
-    default:
-      return 'systemNode';
+    case 'tool_use': return 'toolNode';
+    case 'user': return 'userNode';
+    case 'thinking': return 'thinkingNode';
+    case 'text': return 'textNode';
+    case 'compaction': return 'compactionNode';
+    case 'session_end': return 'sessionEndNode';
+    default: return 'systemNode';
   }
 }
 
-/**
- * Uses dagre to compute an automatic hierarchical layout for the mind-map
- * graph, converting internal GraphNode/GraphEdge arrays into positioned
- * React Flow Node/Edge arrays.
- *
- * The layout is recomputed whenever the input nodes, edges, or direction
- * change (memoised via useMemo).
- */
+// ---------------------------------------------------------------------------
+// Conversation layout: user messages horizontal, responses vertical below
+// ---------------------------------------------------------------------------
+
+function conversationLayout(
+  graphNodes: GraphNode[],
+  graphEdges: GraphEdge[],
+): Map<string, { x: number; y: number }> {
+  const positions = new Map<string, { x: number; y: number }>();
+  if (graphNodes.length === 0) return positions;
+
+  // Build adjacency
+  const childrenOf = new Map<string, string[]>();
+  const hasParent = new Set<string>();
+  for (const e of graphEdges) {
+    const list = childrenOf.get(e.source);
+    if (list) list.push(e.target);
+    else childrenOf.set(e.source, [e.target]);
+    hasParent.add(e.target);
+  }
+
+  // Node lookup
+  const nodeMap = new Map<string, GraphNode>();
+  for (const n of graphNodes) nodeMap.set(n.id, n);
+
+  // Find roots
+  const roots: string[] = [];
+  for (const n of graphNodes) {
+    if (!hasParent.has(n.id)) roots.push(n.id);
+  }
+
+  // DFS to collect nodes in chain order
+  const ordered: GraphNode[] = [];
+  const visited = new Set<string>();
+  function dfs(id: string): void {
+    if (visited.has(id)) return;
+    visited.add(id);
+    const gn = nodeMap.get(id);
+    if (gn) ordered.push(gn);
+    const kids = childrenOf.get(id) || [];
+    for (const kid of kids) dfs(kid);
+  }
+  for (const rootId of roots) dfs(rootId);
+  // Orphans
+  for (const n of graphNodes) {
+    if (!visited.has(n.id)) {
+      visited.add(n.id);
+      ordered.push(n);
+    }
+  }
+
+  // Split into columns: each column starts at a user node
+  const columns: GraphNode[][] = [];
+  let currentCol: GraphNode[] = [];
+  for (const node of ordered) {
+    if (node.kind === 'user' && currentCol.length > 0) {
+      columns.push(currentCol);
+      currentCol = [node];
+    } else {
+      currentCol.push(node);
+    }
+  }
+  if (currentCol.length > 0) columns.push(currentCol);
+
+  // Position: columns left-to-right, nodes stacked vertically within each
+  let x = 0;
+  for (const column of columns) {
+    let y = TOP_MARGIN;
+    for (const node of column) {
+      positions.set(node.id, { x, y });
+      y += estimateNodeHeight(node.label) + ROW_GAP;
+    }
+    x += NODE_WIDTH + COL_GAP;
+  }
+
+  return positions;
+}
+
+// ---------------------------------------------------------------------------
+// React hook
+// ---------------------------------------------------------------------------
+
+interface CachedPosition { x: number; y: number }
+
 export function useAutoLayout(
   graphNodes: GraphNode[],
   graphEdges: GraphEdge[],
-  direction: LayoutDirection,
 ): { nodes: Node[]; edges: Edge[] } {
+  const posCache = useRef<Map<string, CachedPosition>>(new Map());
+
   return useMemo(() => {
     if (graphNodes.length === 0) {
+      posCache.current.clear();
       return { nodes: [], edges: [] };
     }
 
-    const g = new dagre.graphlib.Graph();
-    g.setDefaultEdgeLabel(() => ({}));
-    g.setGraph({
-      rankdir: direction,
-      nodesep: 60,
-      ranksep: 80,
-      marginx: 40,
-      marginy: 40,
-    });
+    const cache = posCache.current;
 
-    graphNodes.forEach((node) => {
-      const h = estimateNodeHeight(node.label);
-      g.setNode(node.id, { width: NODE_WIDTH, height: h });
-    });
+    // Count new nodes not in cache
+    let newCount = 0;
+    for (const n of graphNodes) {
+      if (!cache.has(n.id)) newCount++;
+    }
+    const isIncremental = newCount > 0 && newCount < Math.max(graphNodes.length * 0.3, 20);
 
-    graphEdges.forEach((edge) => {
-      g.setEdge(edge.source, edge.target);
-    });
+    if (!isIncremental) {
+      // Full conversation layout
+      const positions = conversationLayout(graphNodes, graphEdges);
+      cache.clear();
+      for (const [id, pos] of positions) {
+        cache.set(id, pos);
+      }
+    } else {
+      // Incremental: find the last column's x and append new nodes there
+      // or start a new column if a new user message arrived
+      const nodeMap = new Map<string, GraphNode>();
+      for (const n of graphNodes) nodeMap.set(n.id, n);
 
-    dagre.layout(g);
+      const parentOf = new Map<string, string>();
+      for (const e of graphEdges) parentOf.set(e.target, e.source);
 
+      // Find the rightmost x and the max y at that x (last column)
+      let maxX = 0;
+      let maxYAtMaxX = 0;
+      for (const pos of cache.values()) {
+        if (pos.x > maxX) {
+          maxX = pos.x;
+          maxYAtMaxX = pos.y;
+        } else if (pos.x === maxX && pos.y > maxYAtMaxX) {
+          maxYAtMaxX = pos.y;
+        }
+      }
+
+      // Find height of the node at the bottom of the last column
+      let bottomHeight = BASE_HEIGHT;
+      for (const [id, pos] of cache.entries()) {
+        if (pos.x === maxX && pos.y === maxYAtMaxX) {
+          const gn = nodeMap.get(id);
+          if (gn) bottomHeight = estimateNodeHeight(gn.label);
+          break;
+        }
+      }
+
+      let currentX = maxX;
+      let currentY = maxYAtMaxX + bottomHeight + ROW_GAP;
+
+      for (const gn of graphNodes) {
+        if (cache.has(gn.id)) continue;
+        if (gn.kind === 'user') {
+          // Start a new column
+          currentX = maxX + NODE_WIDTH + COL_GAP;
+          maxX = currentX;
+          currentY = TOP_MARGIN;
+        }
+        cache.set(gn.id, { x: currentX, y: currentY });
+        currentY += estimateNodeHeight(gn.label) + ROW_GAP;
+      }
+    }
+
+    // Prune stale cache entries
+    if (cache.size > graphNodes.length + 50) {
+      const valid = new Set(graphNodes.map(n => n.id));
+      for (const key of cache.keys()) {
+        if (!valid.has(key)) cache.delete(key);
+      }
+    }
+
+    // Build React Flow nodes
     const nodes = graphNodes.map((gn) => {
-      const pos = g.node(gn.id);
-      const h = estimateNodeHeight(gn.label);
+      const pos = cache.get(gn.id) || { x: 0, y: 0 };
       return {
         id: gn.id,
         type: nodeTypeFromKind(gn.kind),
-        position: {
-          x: (pos?.x ?? 0) - NODE_WIDTH / 2,
-          y: (pos?.y ?? 0) - h / 2,
-        },
+        position: { x: pos.x, y: pos.y },
         data: gn as unknown as Record<string, unknown>,
       };
     }) satisfies Node[];
 
-    // Build lookup map for O(1) node access instead of O(n) find per edge
+    // Build edges
     const nodeById = new Map(graphNodes.map((n) => [n.id, n]));
     const totalEdges = graphEdges.length;
-
     const edges: Edge[] = graphEdges.map((ge) => ({
       id: ge.id,
       source: ge.source,
@@ -109,5 +221,5 @@ export function useAutoLayout(
     }));
 
     return { nodes, edges };
-  }, [graphNodes, graphEdges, direction]);
+  }, [graphNodes, graphEdges]);
 }

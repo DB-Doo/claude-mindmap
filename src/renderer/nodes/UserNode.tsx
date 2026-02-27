@@ -16,7 +16,7 @@ function UserNode({ data, id }: NodeProps) {
     <>
       <Handle type="target" position={Position.Top} />
       <div className="node-header">
-        <span className="node-icon">{'\uD83D\uDC64'}</span>
+        <span className="node-icon">{'\u25B6'}</span>
         <span>You</span>
       </div>
       <div className="node-label">{gn.label}</div>

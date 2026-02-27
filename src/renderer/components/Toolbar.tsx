@@ -77,17 +77,29 @@ const costStyle: CSSProperties = {
   fontSize: 11,
 };
 
+const recenterBtn: CSSProperties = {
+  ...btn,
+  color: '#34d399',
+};
+
+const recenterAlertBtn: CSSProperties = {
+  ...btn,
+  color: '#34d399',
+  borderColor: '#34d399',
+  backgroundColor: 'rgba(52, 211, 153, 0.1)',
+};
+
 export default function Toolbar() {
-  const direction = useSessionStore(s => s.layoutDirection);
-  const setDirection = useSessionStore(s => s.setLayoutDirection);
   const showThinking = useSessionStore(s => s.showThinking);
   const showText = useSessionStore(s => s.showText);
   const showSystem = useSessionStore(s => s.showSystem);
   const autoFollow = useSessionStore(s => s.autoFollow);
+  const hasNewNodes = useSessionStore(s => s.hasNewNodesSinceManualPan);
   const toggleShowThinking = useSessionStore(s => s.toggleShowThinking);
   const toggleShowText = useSessionStore(s => s.toggleShowText);
   const toggleShowSystem = useSessionStore(s => s.toggleShowSystem);
   const toggleAutoFollow = useSessionStore(s => s.toggleAutoFollow);
+  const requestCenter = useSessionStore(s => s.requestCenter);
   const nodeCount = useSessionStore(s => s.nodes.length);
   const searchQuery = useSessionStore(s => s.searchQuery);
   const setSearchQuery = useSessionStore(s => s.setSearchQuery);
@@ -113,21 +125,6 @@ export default function Toolbar() {
   return (
     <div style={toolbarStyle}>
       <div style={groupStyle}>
-        <button
-          style={direction === 'TB' ? activeBtn : btn}
-          onClick={() => setDirection('TB')}
-        >
-          Vertical
-        </button>
-        <button
-          style={direction === 'LR' ? activeBtn : btn}
-          onClick={() => setDirection('LR')}
-        >
-          Horizontal
-        </button>
-      </div>
-      <div style={dividerStyle} />
-      <div style={groupStyle}>
         <button style={showThinking ? activeBtn : btn} onClick={toggleShowThinking}>
           Thinking
         </button>
@@ -142,6 +139,14 @@ export default function Toolbar() {
       <button style={autoFollow ? activeBtn : btn} onClick={toggleAutoFollow}>
         Auto-follow
       </button>
+      {!autoFollow && nodeCount > 0 && (
+        <button
+          style={hasNewNodes ? recenterAlertBtn : recenterBtn}
+          onClick={requestCenter}
+        >
+          Recenter{hasNewNodes ? ' *' : ''}
+        </button>
+      )}
       <div style={dividerStyle} />
       <input
         type="text"

@@ -289,7 +289,6 @@ function detectEndReason(filePath: string, mtimeMs: number): SessionEndReason {
  */
 export async function discoverSessions(): Promise<SessionInfo[]> {
   const roots = findClaudeRoots();
-  console.log('[session-discovery] Found claude roots:', roots.map(r => r.label + ' -> ' + r.claudeDir));
 
   // Collect all sessions across all roots, deduplicating by sessionId.
   const globalMap = new Map<string, { entry: HistoryEntry; claudeDir: string }>();
@@ -350,6 +349,5 @@ export async function discoverSessions(): Promise<SessionInfo[]> {
     return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
   });
 
-  console.log('[session-discovery] Found', sessions.length, 'sessions');
   return sessions;
 }

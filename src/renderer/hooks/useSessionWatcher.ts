@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useSessionStore } from '../store/session-store';
-import { SessionInfo } from '../../shared/types';
+import { SessionInfo, JSONLMessage } from '../../shared/types';
 
 declare global {
   interface Window {
@@ -26,6 +26,19 @@ export function useSessionWatcher(): void {
   const appendRef = useRef(appendMessages);
   appendRef.current = appendMessages;
 
+  // Batched append: buffer incoming messages, flush after 100ms idle
+  const pendingRef = useRef<JSONLMessage[]>([]);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushPending = useCallback(() => {
+    timerRef.current = null;
+    if (pendingRef.current.length > 0) {
+      const batch = pendingRef.current;
+      pendingRef.current = [];
+      appendRef.current(batch);
+    }
+  }, []);
+
   // On mount: discover sessions, and periodically re-discover (every 30s)
   // so endReason updates from 'active' → 'ended' without manual refresh.
   useEffect(() => {
@@ -37,12 +50,22 @@ export function useSessionWatcher(): void {
   }, [setSessions]);
 
   // Register the new-messages listener once for incremental updates.
+  // Uses batched append to avoid multiple fullRebuilds per second.
   useEffect(() => {
     const unsub = window.api.onNewMessages((msgs) => {
-      appendRef.current(msgs);
+      pendingRef.current.push(...msgs);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(flushPending, 100);
     });
-    return () => unsub();
-  }, []);
+    return () => {
+      unsub();
+      // Flush any pending messages on cleanup
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        flushPending();
+      }
+    };
+  }, [flushPending]);
 
   // When activeSessionPath changes: load the full session.
   //
@@ -55,6 +78,13 @@ export function useSessionWatcher(): void {
   // with the second watcher's setup. Removing it eliminates the race.
   useEffect(() => {
     if (!activeSessionPath) return;
+
+    // Clear any pending batched messages from previous session
+    pendingRef.current = [];
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
 
     const gen = ++requestGeneration;
 
@@ -74,14 +104,10 @@ export function useSessionWatcher(): void {
                 if (gen !== requestGeneration) return;
                 setMessages(retryMessages);
               })
-              .catch((err) => {
-                console.error('[renderer] watchSession retry failed:', err);
-              });
+              .catch(() => {});
           }, 500);
         }
       })
-      .catch((err) => {
-        console.error('[renderer] watchSession failed:', err);
-      });
+      .catch(() => {});
   }, [activeSessionPath, setMessages]);
 }

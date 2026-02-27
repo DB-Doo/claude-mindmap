@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { getBezierPath, type EdgeProps } from '@xyflow/react';
+import { getBezierPath, getSmoothStepPath, type EdgeProps } from '@xyflow/react';
 import { TOOL_COLORS } from '../../shared/types';
 
 function NeonEdge(props: EdgeProps) {
@@ -9,10 +9,20 @@ function NeonEdge(props: EdgeProps) {
     data,
   } = props;
 
-  const [edgePath] = getBezierPath({
-    sourceX, sourceY, sourcePosition,
-    targetX, targetY, targetPosition,
-  });
+  // Use smooth step for cross-column edges (large horizontal distance),
+  // bezier for within-column edges (mostly vertical).
+  const isCrossColumn = Math.abs(targetX - sourceX) > 100;
+
+  const [edgePath] = isCrossColumn
+    ? getSmoothStepPath({
+        sourceX, sourceY, sourcePosition,
+        targetX, targetY, targetPosition,
+        borderRadius: 16,
+      })
+    : getBezierPath({
+        sourceX, sourceY, sourcePosition,
+        targetX, targetY, targetPosition,
+      });
 
   const edgeData = data as Record<string, unknown> | undefined;
   const color = TOOL_COLORS[edgeData?.toolName as string || ''] || TOOL_COLORS.default;

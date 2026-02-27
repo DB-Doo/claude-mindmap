@@ -3,6 +3,10 @@ import * as path from 'path';
 import { discoverSessions } from './session-discovery';
 import { SessionWatcher } from './watcher';
 
+// Prevent EPIPE crashes when stdout pipe is closed (e.g. terminal exits)
+process.stdout?.on?.('error', () => {});
+process.stderr?.on?.('error', () => {});
+
 let mainWindow: BrowserWindow | null = null;
 let currentWatcher: SessionWatcher | null = null;
 
@@ -16,10 +20,6 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
     },
-  });
-
-  mainWindow.webContents.on('console-message', (_e, level, message) => {
-    if (level >= 2) console.log('[R]', message);
   });
 
   if (process.env.VITE_DEV_SERVER_URL) {
@@ -42,11 +42,8 @@ ipcMain.handle('discover-sessions', async () => {
 });
 
 ipcMain.handle('watch-session', async (_event, filePath: string) => {
-  console.log('[IPC] watch-session:', filePath);
-
   // Tear down any existing watcher before creating a new one.
   if (currentWatcher) {
-    console.log('[IPC] stopping previous watcher');
     currentWatcher.stop();
     currentWatcher = null;
   }
@@ -57,31 +54,22 @@ ipcMain.handle('watch-session', async (_event, filePath: string) => {
 
     watcher.on('new-messages', (messages) => {
       if (currentWatcher !== watcher) return;
-      console.log('[IPC] sending new-messages:', messages.length, 'messages');
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('new-messages', messages);
       }
     });
 
-    watcher.on('error', (err: unknown) => {
-      console.error('[SessionWatcher] error:', err);
-    });
+    watcher.on('error', () => {});
 
-    // start() reads the file and returns all existing messages synchronously,
-    // then begins watching for future changes. We return the initial messages
-    // as the invoke result so the renderer gets them immediately.
     const initialMessages = watcher.start();
-    console.log('[IPC] returning initial-messages:', initialMessages.length, 'messages');
     return initialMessages;
-  } catch (err) {
-    console.error('[IPC] watch-session error:', err);
+  } catch {
     return [];
   }
 });
 
 ipcMain.handle('stop-watching', async () => {
   if (currentWatcher) {
-    console.log('[IPC] stop-watching');
     currentWatcher.stop();
     currentWatcher = null;
   }

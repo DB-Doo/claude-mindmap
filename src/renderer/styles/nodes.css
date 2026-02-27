@@ -12,15 +12,12 @@
   padding: 12px;
   min-width: 200px;
   max-width: 340px;
-  transition: box-shadow var(--transition-normal);
   position: relative;
   font-family: var(--font-mono);
 }
 
 .mind-map-node:hover {
-  box-shadow:
-    0 0 12px rgba(42, 42, 62, 0.6),
-    0 0 24px rgba(42, 42, 62, 0.3);
+  box-shadow: 0 0 12px rgba(42, 42, 62, 0.6);
 }
 
 /* ----- Node Header ----- */
@@ -132,15 +129,11 @@
 /* Bash / Terminal — orange */
 .tool-bash {
   border-color: var(--neon-orange);
-  box-shadow:
-    0 0 8px rgba(255, 107, 53, 0.2),
-    0 0 20px rgba(255, 107, 53, 0.08);
+  box-shadow: 0 0 8px rgba(255, 107, 53, 0.2);
 }
 
 .tool-bash:hover {
-  box-shadow:
-    0 0 14px rgba(255, 107, 53, 0.35),
-    0 0 30px rgba(255, 107, 53, 0.15);
+  box-shadow: 0 0 14px rgba(255, 107, 53, 0.35);
 }
 
 .tool-bash .node-header {
@@ -150,15 +143,11 @@
 /* Read — cyan */
 .tool-read {
   border-color: var(--neon-cyan);
-  box-shadow:
-    0 0 8px rgba(0, 212, 255, 0.2),
-    0 0 20px rgba(0, 212, 255, 0.08);
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.2);
 }
 
 .tool-read:hover {
-  box-shadow:
-    0 0 14px rgba(0, 212, 255, 0.35),
-    0 0 30px rgba(0, 212, 255, 0.15);
+  box-shadow: 0 0 14px rgba(0, 212, 255, 0.35);
 }
 
 .tool-read .node-header {
@@ -168,15 +157,11 @@
 /* Edit — pink */
 .tool-edit {
   border-color: var(--neon-pink);
-  box-shadow:
-    0 0 8px rgba(255, 61, 113, 0.2),
-    0 0 20px rgba(255, 61, 113, 0.08);
+  box-shadow: 0 0 8px rgba(255, 61, 113, 0.2);
 }
 
 .tool-edit:hover {
-  box-shadow:
-    0 0 14px rgba(255, 61, 113, 0.35),
-    0 0 30px rgba(255, 61, 113, 0.15);
+  box-shadow: 0 0 14px rgba(255, 61, 113, 0.35);
 }
 
 .tool-edit .node-header {
@@ -186,15 +171,11 @@
 /* Write — purple */
 .tool-write {
   border-color: var(--neon-purple);
-  box-shadow:
-    0 0 8px rgba(168, 85, 247, 0.2),
-    0 0 20px rgba(168, 85, 247, 0.08);
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.2);
 }
 
 .tool-write:hover {
-  box-shadow:
-    0 0 14px rgba(168, 85, 247, 0.35),
-    0 0 30px rgba(168, 85, 247, 0.15);
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.35);
 }
 
 .tool-write .node-header {
@@ -204,15 +185,11 @@
 /* Grep — teal */
 .tool-grep {
   border-color: var(--neon-teal);
-  box-shadow:
-    0 0 8px rgba(34, 211, 238, 0.2),
-    0 0 20px rgba(34, 211, 238, 0.08);
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.2);
 }
 
 .tool-grep:hover {
-  box-shadow:
-    0 0 14px rgba(34, 211, 238, 0.35),
-    0 0 30px rgba(34, 211, 238, 0.15);
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.35);
 }
 
 .tool-grep .node-header {
@@ -222,15 +199,11 @@
 /* Glob — gold */
 .tool-glob {
   border-color: var(--neon-gold);
-  box-shadow:
-    0 0 8px rgba(251, 191, 36, 0.2),
-    0 0 20px rgba(251, 191, 36, 0.08);
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.2);
 }
 
 .tool-glob:hover {
-  box-shadow:
-    0 0 14px rgba(251, 191, 36, 0.35),
-    0 0 30px rgba(251, 191, 36, 0.15);
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.35);
 }
 
 .tool-glob .node-header {
@@ -240,15 +213,11 @@
 /* Web — cyan (alternate shade) */
 .tool-web {
   border-color: var(--neon-cyan);
-  box-shadow:
-    0 0 8px rgba(0, 212, 255, 0.2),
-    0 0 20px rgba(0, 212, 255, 0.08);
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.2);
 }
 
 .tool-web:hover {
-  box-shadow:
-    0 0 14px rgba(0, 212, 255, 0.35),
-    0 0 30px rgba(0, 212, 255, 0.15);
+  box-shadow: 0 0 14px rgba(0, 212, 255, 0.35);
 }
 
 .tool-web .node-header {
@@ -258,15 +227,11 @@
 /* Task — gold */
 .tool-task {
   border-color: var(--neon-gold);
-  box-shadow:
-    0 0 8px rgba(251, 191, 36, 0.2),
-    0 0 20px rgba(251, 191, 36, 0.08);
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.2);
 }
 
 .tool-task:hover {
-  box-shadow:
-    0 0 14px rgba(251, 191, 36, 0.35),
-    0 0 30px rgba(251, 191, 36, 0.15);
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.35);
 }
 
 .tool-task .node-header {
@@ -277,27 +242,36 @@
    Special Node Types
    ============================================================ */
 
-/* User node — emerald border, subtle gradient */
+/* User node — bold emerald accent, stands out from Claude nodes */
 .user-node {
   border-color: var(--neon-emerald);
+  border-left: 3px solid var(--neon-emerald);
   background: linear-gradient(
     135deg,
-    rgba(52, 211, 153, 0.06) 0%,
-    var(--bg-secondary) 70%
+    rgba(52, 211, 153, 0.10) 0%,
+    rgba(52, 211, 153, 0.03) 40%,
+    var(--bg-secondary) 80%
   );
-  box-shadow:
-    0 0 8px rgba(52, 211, 153, 0.2),
-    0 0 20px rgba(52, 211, 153, 0.08);
+  box-shadow: 0 0 12px rgba(52, 211, 153, 0.25);
 }
 
 .user-node:hover {
   box-shadow:
-    0 0 14px rgba(52, 211, 153, 0.35),
-    0 0 30px rgba(52, 211, 153, 0.15);
+    0 0 18px rgba(52, 211, 153, 0.4),
+    0 0 40px rgba(52, 211, 153, 0.1);
 }
 
 .user-node .node-header {
   color: var(--neon-emerald);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+}
+
+.user-node .node-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #f0f0f0;
 }
 
 /* Thinking node — dimmed, italic */
@@ -397,17 +371,13 @@
     var(--bg-secondary) 70%,
     rgba(251, 191, 36, 0.06) 100%
   );
-  box-shadow:
-    0 0 8px rgba(251, 191, 36, 0.2),
-    0 0 20px rgba(251, 191, 36, 0.08);
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.2);
   min-width: 280px;
   max-width: 380px;
 }
 
 .compaction-node:hover {
-  box-shadow:
-    0 0 14px rgba(251, 191, 36, 0.35),
-    0 0 30px rgba(251, 191, 36, 0.15);
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.35);
 }
 
 .compaction-node .node-header {
@@ -443,9 +413,7 @@
 
 .session-end-compacted {
   border-color: var(--neon-gold);
-  box-shadow:
-    0 0 6px rgba(251, 191, 36, 0.15),
-    0 0 14px rgba(251, 191, 36, 0.06);
+  box-shadow: 0 0 6px rgba(251, 191, 36, 0.15);
 }
 
 .session-end-compacted .node-header {
@@ -483,6 +451,7 @@
 
 .node-new {
   animation: neon-pulse 0.6s ease-in-out 2;
+  will-change: box-shadow;
 }
 
 /* Search match highlight — bright outline ring */

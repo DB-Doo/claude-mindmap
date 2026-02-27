@@ -122,6 +122,8 @@ export function buildGraph(
   const skipRedirect = new Map<string, string>();
 
   function addNode(node: GraphNode, uuid: string): void {
+    // Pre-compute lowercase search text once
+    node._searchText = (node.label + '\n' + node.detail + '\n' + (node.toolName || '')).toLowerCase();
     nodes.push(node);
     const list = uuidToNodeIds.get(uuid);
     if (list) {
@@ -374,19 +376,22 @@ export function buildGraph(
   if (endReason && endReason !== 'active' && nodes.length > 0) {
     const lastNode = nodes[nodes.length - 1];
     const endId = '__session_end__';
+    const endLabel = endReason === 'compacted' ? 'Session Compacted' : 'Session Ended';
+    const endDetail = endReason === 'compacted'
+      ? 'Context was compressed. A new session may continue this work.'
+      : 'No further messages were recorded.';
     nodes.push({
       id: endId,
       parentId: lastNode.id,
       kind: 'session_end',
       toolName: null,
-      label: endReason === 'compacted' ? 'Session Compacted' : 'Session Ended',
-      detail: endReason === 'compacted'
-        ? 'Context was compressed. A new session may continue this work.'
-        : 'No further messages were recorded.',
+      label: endLabel,
+      detail: endDetail,
       status: null,
       timestamp: lastNode.timestamp,
       isNew: false,
       endReason,
+      _searchText: (endLabel + '\n' + endDetail).toLowerCase(),
     });
     edges.push({
       id: `${lastNode.id}->${endId}`,

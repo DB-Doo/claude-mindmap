@@ -37,13 +37,14 @@ const edgeTypes = {
 export default function MindMap() {
   const graphNodes = useSessionStore(s => s.nodes);
   const graphEdges = useSessionStore(s => s.edges);
-  const direction = useSessionStore(s => s.layoutDirection);
   const selectNode = useSessionStore(s => s.selectNode);
   const autoFollow = useSessionStore(s => s.autoFollow);
+  const centerRequested = useSessionStore(s => s.centerRequested);
+  const clearCenterRequest = useSessionStore(s => s.clearCenterRequest);
   const newNodeIds = useSessionStore(s => s.newNodeIds);
   const clearNewNodes = useSessionStore(s => s.clearNewNodes);
 
-  const { nodes, edges } = useAutoLayout(graphNodes, graphEdges, direction);
+  const { nodes, edges } = useAutoLayout(graphNodes, graphEdges);
   const { fitView, setCenter, getZoom } = useReactFlow();
   const prevNodeCount = useRef(0);
 
@@ -80,6 +81,24 @@ export default function MindMap() {
 
     prevNodeCount.current = nodes.length;
   }, [nodes.length, autoFollow, fitView, setCenter, getZoom]);
+
+  // Center-on-demand: triggered by toggleAutoFollow(ON) or Recenter button
+  useEffect(() => {
+    if (!centerRequested || nodes.length === 0) return;
+
+    const lastNode = nodes[nodes.length - 1];
+    if (lastNode && lastNode.position) {
+      const nodeWidth = lastNode.measured?.width ?? lastNode.width ?? 200;
+      const nodeHeight = lastNode.measured?.height ?? lastNode.height ?? 80;
+      const x = lastNode.position.x + nodeWidth / 2;
+      const y = lastNode.position.y + nodeHeight / 2;
+      setTimeout(() => {
+        setCenter(x, y, { duration: 400, zoom: 1 });
+      }, 100);
+    }
+
+    clearCenterRequest();
+  }, [centerRequested, nodes, setCenter, getZoom, clearCenterRequest]);
 
   // Clear isNew flags after animation
   useEffect(() => {
