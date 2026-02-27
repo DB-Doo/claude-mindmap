@@ -3,6 +3,7 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { motion } from 'framer-motion';
 import { GraphNode, TOOL_COLORS } from '../../shared/types';
 import CollapseButton from './CollapseButton';
+import { formatTokensBadge } from './tokenBadge';
 
 const TOOL_ICONS: Record<string, string> = {
   Bash: '\u26A1', Read: '\uD83D\uDCD6', Edit: '\u270F\uFE0F', Write: '\uD83D\uDCDD',
@@ -33,6 +34,7 @@ function ToolNode({ data, id }: NodeProps) {
             {gn.status}
           </span>
         )}
+        {formatTokensBadge(gn)}
       </div>
       <div className="node-label">{gn.label}</div>
       <Handle type="source" position={Position.Bottom} />

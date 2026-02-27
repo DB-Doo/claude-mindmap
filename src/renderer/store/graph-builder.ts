@@ -238,6 +238,11 @@ export function buildGraph(
       const content = assistantMsg.message?.content;
       if (!Array.isArray(content)) continue;
 
+      // Extract token usage from this API call
+      const usage = (assistantMsg as any).message?.usage;
+      const inputTokens = usage?.input_tokens || 0;
+      const outputTokens = usage?.output_tokens || 0;
+
       for (let i = 0; i < content.length; i++) {
         const block: ContentBlock = content[i];
 
@@ -254,6 +259,8 @@ export function buildGraph(
                 status: null,
                 timestamp: msg.timestamp,
                 isNew: false,
+                inputTokens,
+                outputTokens,
               },
               msg.uuid,
             );
@@ -272,6 +279,8 @@ export function buildGraph(
                 status: null,
                 timestamp: msg.timestamp,
                 isNew: false,
+                inputTokens,
+                outputTokens,
               },
               msg.uuid,
             );
@@ -291,6 +300,8 @@ export function buildGraph(
                 status,
                 timestamp: msg.timestamp,
                 isNew: false,
+                inputTokens,
+                outputTokens,
               },
               msg.uuid,
             );

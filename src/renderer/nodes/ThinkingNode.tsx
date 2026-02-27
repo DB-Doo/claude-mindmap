@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import type { GraphNode } from '../../shared/types';
 import { useSessionStore } from '../store/session-store';
 import CollapseButton from './CollapseButton';
+import { formatTokensBadge } from './tokenBadge';
 
 const MAX_LABEL_LENGTH = 120;
 
@@ -35,6 +36,7 @@ function ThinkingNode({ data, id }: NodeProps) {
         <span className="node-icon">{isActive ? '\uD83E\uDDE0' : '\uD83D\uDCAD'}</span>
         <span>{isActive ? 'Thinking...' : 'Thinking'}</span>
         {isActive && <div className="spinner" style={{ display: 'inline-block', borderTopColor: '#a855f7' }} />}
+        {formatTokensBadge(gn)}
       </div>
       <div className="node-label">{truncated}</div>
       <Handle type="source" position={Position.Bottom} />

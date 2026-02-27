@@ -3,6 +3,7 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { motion } from 'framer-motion';
 import type { GraphNode } from '../../shared/types';
 import CollapseButton from './CollapseButton';
+import { formatTokensBadge } from './tokenBadge';
 
 function TextNode({ data, id }: NodeProps) {
   const gn = data as unknown as GraphNode;
@@ -18,6 +19,7 @@ function TextNode({ data, id }: NodeProps) {
       <div className="node-header">
         <span className="node-icon">{'\uD83D\uDCAC'}</span>
         <span>Response</span>
+        {formatTokensBadge(gn)}
       </div>
       <div className="node-label">{gn.label}</div>
       <Handle type="source" position={Position.Bottom} />

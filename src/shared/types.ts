@@ -102,6 +102,9 @@ export interface GraphNode {
   compactTokens?: number;
   /** For session_end nodes: why the session ended. */
   endReason?: SessionEndReason;
+  /** Tokens used by the assistant API call that produced this node. */
+  inputTokens?: number;
+  outputTokens?: number;
   /** Pre-computed lowercase search text (label + detail + toolName). */
   _searchText?: string;
 }
