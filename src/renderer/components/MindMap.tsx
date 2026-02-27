@@ -171,6 +171,25 @@ export default function MindMap() {
     clearCenterRequest();
   }, [centerStartRequested, nodes, setCenter, getZoom, clearCenterRequest]);
 
+  // Navigate to a specific node by ID (arrow navigation)
+  const centerOnNodeId = useSessionStore(s => s.centerOnNodeId);
+  const clearCenterOnNode = useSessionStore(s => s.clearCenterOnNode);
+  useEffect(() => {
+    if (!centerOnNodeId || nodes.length === 0) return;
+    const target = nodes.find(n => n.id === centerOnNodeId);
+    if (target && target.position) {
+      const nodeWidth = target.measured?.width ?? target.width ?? 200;
+      const nodeHeight = target.measured?.height ?? target.height ?? 80;
+      const x = (target.position.x as number) + (nodeWidth as number) / 2;
+      const y = (target.position.y as number) + (nodeHeight as number) / 2;
+      isProgrammaticMove.current = true;
+      userPanned.current = false;
+      setCenter(x, y, { duration: 300, zoom: 1 });
+      setTimeout(() => { isProgrammaticMove.current = false; }, 400);
+    }
+    clearCenterOnNode();
+  }, [centerOnNodeId, nodes, setCenter, clearCenterOnNode]);
+
   // Clear isNew flags after animation
   useEffect(() => {
     if (newNodeIds.size > 0) {

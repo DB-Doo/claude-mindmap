@@ -46,6 +46,7 @@ interface SessionState {
   centerRequested: boolean;
   centerStartRequested: boolean;
   centerOnLoad: boolean;
+  centerOnNodeId: string | null;
   hasNewNodesSinceManualPan: boolean;
   newNodeIds: Set<string>;
   liveActivity: LiveActivity;
@@ -77,6 +78,8 @@ interface SessionState {
   setSearchQuery: (query: string) => void;
   setBackgroundActivities: (map: Map<string, { activity: LiveActivity; sessionName: string }>) => void;
   loadFullSession: () => void;
+  navigateUserMessage: (direction: 'prev' | 'next') => void;
+  clearCenterOnNode: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -410,6 +413,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   centerRequested: false,
   centerStartRequested: false,
   centerOnLoad: false,
+  centerOnNodeId: null,
   hasNewNodesSinceManualPan: false,
   newNodeIds: new Set<string>(),
   liveActivity: 'idle' as LiveActivity,
@@ -657,4 +661,24 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       totalMessageCount: result.totalMessageCount,
     });
   },
+
+  navigateUserMessage: (direction) => {
+    const state = get();
+    const userNodes = state.nodes.filter((n) => n.kind === 'user');
+    if (userNodes.length === 0) return;
+
+    const currentId = state.centerOnNodeId || state.selectedNodeId;
+    const currentIdx = currentId ? userNodes.findIndex((n) => n.id === currentId) : -1;
+
+    let targetIdx: number;
+    if (direction === 'next') {
+      targetIdx = currentIdx < userNodes.length - 1 ? currentIdx + 1 : userNodes.length - 1;
+    } else {
+      targetIdx = currentIdx > 0 ? currentIdx - 1 : 0;
+    }
+
+    set({ centerOnNodeId: userNodes[targetIdx].id, selectedNodeId: userNodes[targetIdx].id });
+  },
+
+  clearCenterOnNode: () => set({ centerOnNodeId: null }),
 }));

@@ -108,6 +108,7 @@ export default function Toolbar() {
   const isWindowed = useSessionStore(s => s.isWindowed);
   const totalMessageCount = useSessionStore(s => s.totalMessageCount);
   const loadFullSession = useSessionStore(s => s.loadFullSession);
+  const navigateUserMessage = useSessionStore(s => s.navigateUserMessage);
 
   // Debounced search: local state updates instantly, store updates after 200ms
   const [localSearch, setLocalSearch] = useState(searchQuery);
@@ -154,6 +155,15 @@ export default function Toolbar() {
           >
             Recenter{hasNewNodes ? ' *' : ''}
           </button>
+          <div style={dividerStyle} />
+          <div style={groupStyle}>
+            <button style={btn} onClick={() => navigateUserMessage('prev')} title="Previous user message">
+              {'\u25C0'}
+            </button>
+            <button style={btn} onClick={() => navigateUserMessage('next')} title="Next user message">
+              {'\u25B6'}
+            </button>
+          </div>
         </>
       )}
       <div style={dividerStyle} />
