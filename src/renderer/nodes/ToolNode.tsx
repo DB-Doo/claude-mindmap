@@ -8,7 +8,7 @@ import { formatTokensBadge } from './tokenBadge';
 const TOOL_ICONS: Record<string, string> = {
   Bash: '\u26A1', Read: '\uD83D\uDCD6', Edit: '\u270F\uFE0F', Write: '\uD83D\uDCDD',
   Grep: '\uD83D\uDD0D', Glob: '\uD83D\uDCC2', WebFetch: '\uD83C\uDF10', WebSearch: '\uD83D\uDD0E',
-  Task: '\uD83D\uDE80', Skill: '\u2B50',
+  Task: '\uD83D\uDE80', Skill: '\u2B50', AskUserQuestion: '\u2753',
 };
 
 function ToolNode({ data, id }: NodeProps) {
@@ -22,14 +22,16 @@ function ToolNode({ data, id }: NodeProps) {
   const className = `mind-map-node ${toolClass} ${gn.isNew ? 'node-new' : ''} ${gn.status === 'running' ? 'node-running' : ''} ${gn.searchMatch ? 'search-match' : ''}`;
   const style = { '--pulse-color': color } as React.CSSProperties;
 
+  const isQuestion = gn.toolName === 'AskUserQuestion' && gn.questionOptions;
+
   const content = (
     <>
       <Handle type="target" position={Position.Top} />
       <div className="node-header">
         <span className="node-icon">{icon}</span>
-        <span>{gn.toolName}</span>
+        <span>{isQuestion ? 'Question' : gn.toolName}</span>
         {gn.status === 'running' && <div className="spinner" />}
-        {gn.status && (
+        {!isQuestion && gn.status && (
           <span className={`node-status ${gn.status}`}>
             {gn.status}
           </span>
@@ -37,6 +39,19 @@ function ToolNode({ data, id }: NodeProps) {
         {formatTokensBadge(gn)}
       </div>
       <div className="node-label">{gn.label}</div>
+      {isQuestion && gn.questionOptions && (
+        <div className="question-options">
+          {gn.questionOptions.map((opt, idx) => (
+            <div
+              key={idx}
+              className={`question-option ${opt.chosen ? 'question-option-chosen' : ''}`}
+            >
+              <span className="question-option-marker">{opt.chosen ? '\u2713' : '\u25CB'}</span>
+              <span>{opt.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
       <Handle type="source" position={Position.Bottom} />
       <CollapseButton nodeId={id} childCount={gn.childCount || 0} collapsed={gn.collapsed || false} />
     </>

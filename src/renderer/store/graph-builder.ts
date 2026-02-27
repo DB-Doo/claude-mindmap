@@ -49,9 +49,36 @@ function formatToolLabel(toolName: string, input: any): string {
       if (input?.prompt) return `Task: ${truncate(String(input.prompt), 80)}`;
       if (input?.description) return `Task: ${truncate(String(input.description), 80)}`;
       return 'Task';
+    case 'AskUserQuestion': {
+      const q = input?.questions?.[0]?.question;
+      return q ? truncate(String(q), 100) : 'Question';
+    }
     default:
       return toolName;
   }
+}
+
+/** Extract options and user's choice from an AskUserQuestion tool_use node. */
+function extractQuestionData(
+  input: any,
+  toolUseId: string,
+  toolResults: Map<string, string>,
+): { questionText?: string; questionOptions?: { label: string; chosen: boolean }[] } {
+  const questions = input?.questions;
+  if (!Array.isArray(questions) || questions.length === 0) return {};
+
+  const q = questions[0];
+  const options: { label: string }[] = q.options || [];
+  const resultText = toolResults.get(toolUseId) || '';
+
+  // The tool_result text contains the chosen option label, e.g.:
+  // 'User has answered your questions: "question?"="chosen label"'
+  const questionOptions = options.map((opt: any) => ({
+    label: String(opt.label || ''),
+    chosen: resultText.includes(`="${opt.label}"`),
+  }));
+
+  return { questionText: q.question, questionOptions };
 }
 
 // ---------------------------------------------------------------------------
@@ -312,6 +339,8 @@ export function buildGraph(
 
           case 'tool_use': {
             const status = resolveToolStatus(block.id, toolResults);
+            const isQuestion = block.name === 'AskUserQuestion';
+            const qData = isQuestion ? extractQuestionData(block.input, block.id, toolResults) : {};
             addNode(
               {
                 id: `${msg.uuid}-${i}`,
@@ -325,6 +354,7 @@ export function buildGraph(
                 isNew: false,
                 inputTokens,
                 outputTokens,
+                ...qData,
               },
               msg.uuid,
             );

@@ -110,6 +110,9 @@ export interface GraphNode {
   /** For user nodes: total tokens used in the response turn below. */
   turnInputTokens?: number;
   turnOutputTokens?: number;
+  /** For AskUserQuestion nodes: the options and user's choice. */
+  questionOptions?: { label: string; chosen: boolean }[];
+  questionText?: string;
   /** Pre-computed lowercase search text (label + detail + toolName). */
   _searchText?: string;
 }
@@ -149,14 +152,15 @@ export type LayoutDirection = 'TB' | 'LR';
 // ---------------------------------------------------------------------------
 
 export const TOOL_COLORS: Record<string, string> = {
-  Bash:      '#ff6b35',
-  Read:      '#00d4ff',
-  Edit:      '#ff3d71',
-  Write:     '#ff3d71',
-  Grep:      '#a855f7',
-  Glob:      '#a855f7',
-  WebFetch:  '#22d3ee',
-  WebSearch: '#22d3ee',
-  Task:      '#fbbf24',
-  default:   '#6b7280',
+  Bash:              '#ff6b35',
+  Read:              '#00d4ff',
+  Edit:              '#ff3d71',
+  Write:             '#ff3d71',
+  Grep:              '#a855f7',
+  Glob:              '#a855f7',
+  WebFetch:          '#22d3ee',
+  WebSearch:         '#22d3ee',
+  Task:              '#fbbf24',
+  AskUserQuestion:   '#f472b6',
+  default:           '#6b7280',
 } as const;
