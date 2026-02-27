@@ -139,7 +139,7 @@ export default function Toolbar() {
       <button style={autoFollow ? activeBtn : btn} onClick={toggleAutoFollow}>
         Auto-follow
       </button>
-      {!autoFollow && nodeCount > 0 && (
+      {nodeCount > 0 && (
         <button
           style={hasNewNodes ? recenterAlertBtn : recenterBtn}
           onClick={requestCenter}

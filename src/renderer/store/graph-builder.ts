@@ -146,6 +146,15 @@ export function buildGraph(
       if (content == null) continue;
 
       if (typeof content === 'string') {
+        // Skip system-injected messages (task notifications, system reminders, etc.)
+        const trimmed = content.trimStart();
+        if (trimmed.startsWith('<task-notification>') || trimmed.startsWith('<system-reminder>')) {
+          if (msg.parentUuid) {
+            skipRedirect.set(msg.uuid, msg.parentUuid);
+          }
+          continue;
+        }
+
         addNode(
           {
             id: msg.uuid,
@@ -191,6 +200,16 @@ export function buildGraph(
       }
 
       const text = textParts.join('\n');
+
+      // Skip system-injected messages in array content too
+      const trimmedText = text.trimStart();
+      if (trimmedText.startsWith('<task-notification>') || trimmedText.startsWith('<system-reminder>')) {
+        if (msg.parentUuid) {
+          skipRedirect.set(msg.uuid, msg.parentUuid);
+        }
+        continue;
+      }
+
       addNode(
         {
           id: msg.uuid,

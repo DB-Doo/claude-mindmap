@@ -201,11 +201,7 @@
   stroke-opacity: 0.3;
 }
 
-.react-flow__minimap-node {
-  fill: var(--bg-tertiary);
-  stroke: var(--border-color);
-  stroke-width: 1;
-}
+/* MiniMapNode styles are set inline by MiniMapNode.tsx */
 
 /* ----- Attribution ----- */
 

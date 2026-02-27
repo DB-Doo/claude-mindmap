@@ -202,6 +202,8 @@ export function useAutoLayout(
         id: gn.id,
         type: nodeTypeFromKind(gn.kind),
         position: { x: pos.x, y: pos.y },
+        width: NODE_WIDTH,
+        height: estimateNodeHeight(gn.label),
         data: gn as unknown as Record<string, unknown>,
       };
     }) satisfies Node[];
