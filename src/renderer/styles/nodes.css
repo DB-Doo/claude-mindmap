@@ -1,0 +1,460 @@
+/* ============================================================
+   nodes.css — Mind Map Node Styling with Neon Effects
+   Mind Map Visualizer
+   ============================================================ */
+
+/* ----- Base Node ----- */
+
+.mind-map-node {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  min-width: 200px;
+  max-width: 340px;
+  transition: box-shadow var(--transition-normal);
+  position: relative;
+  font-family: var(--font-mono);
+}
+
+.mind-map-node:hover {
+  box-shadow:
+    0 0 12px rgba(42, 42, 62, 0.6),
+    0 0 24px rgba(42, 42, 62, 0.3);
+}
+
+/* ----- Node Header ----- */
+
+.node-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+}
+
+/* ----- Node Label ----- */
+
+.node-label {
+  font-size: 12px;
+  color: var(--text-primary);
+  line-height: 1.4;
+  word-break: break-word;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 8;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ----- Node Status Badge ----- */
+
+.node-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.node-status::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--neon-gray);
+  flex-shrink: 0;
+}
+
+/* Running: pulsing green dot */
+.node-status.running {
+  color: var(--neon-emerald);
+}
+
+.node-status.running::before {
+  background: var(--neon-emerald);
+  animation: status-pulse 1.2s ease-in-out infinite;
+}
+
+/* Success: static green dot */
+.node-status.success {
+  color: var(--neon-emerald);
+}
+
+.node-status.success::before {
+  background: var(--neon-emerald);
+}
+
+/* Error: red dot */
+.node-status.error {
+  color: var(--neon-pink);
+}
+
+.node-status.error::before {
+  background: var(--neon-pink);
+}
+
+@keyframes status-pulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5);
+  }
+  50% {
+    opacity: 0.5;
+    box-shadow: 0 0 0 4px rgba(52, 211, 153, 0);
+  }
+}
+
+/* ----- Node Icon ----- */
+
+.node-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Tool-Specific Border Colors and Glow
+   Each tool class sets border-color and a matching neon box-shadow
+   ============================================================ */
+
+/* Bash / Terminal — orange */
+.tool-bash {
+  border-color: var(--neon-orange);
+  box-shadow:
+    0 0 8px rgba(255, 107, 53, 0.2),
+    0 0 20px rgba(255, 107, 53, 0.08);
+}
+
+.tool-bash:hover {
+  box-shadow:
+    0 0 14px rgba(255, 107, 53, 0.35),
+    0 0 30px rgba(255, 107, 53, 0.15);
+}
+
+.tool-bash .node-header {
+  color: var(--neon-orange);
+}
+
+/* Read — cyan */
+.tool-read {
+  border-color: var(--neon-cyan);
+  box-shadow:
+    0 0 8px rgba(0, 212, 255, 0.2),
+    0 0 20px rgba(0, 212, 255, 0.08);
+}
+
+.tool-read:hover {
+  box-shadow:
+    0 0 14px rgba(0, 212, 255, 0.35),
+    0 0 30px rgba(0, 212, 255, 0.15);
+}
+
+.tool-read .node-header {
+  color: var(--neon-cyan);
+}
+
+/* Edit — pink */
+.tool-edit {
+  border-color: var(--neon-pink);
+  box-shadow:
+    0 0 8px rgba(255, 61, 113, 0.2),
+    0 0 20px rgba(255, 61, 113, 0.08);
+}
+
+.tool-edit:hover {
+  box-shadow:
+    0 0 14px rgba(255, 61, 113, 0.35),
+    0 0 30px rgba(255, 61, 113, 0.15);
+}
+
+.tool-edit .node-header {
+  color: var(--neon-pink);
+}
+
+/* Write — purple */
+.tool-write {
+  border-color: var(--neon-purple);
+  box-shadow:
+    0 0 8px rgba(168, 85, 247, 0.2),
+    0 0 20px rgba(168, 85, 247, 0.08);
+}
+
+.tool-write:hover {
+  box-shadow:
+    0 0 14px rgba(168, 85, 247, 0.35),
+    0 0 30px rgba(168, 85, 247, 0.15);
+}
+
+.tool-write .node-header {
+  color: var(--neon-purple);
+}
+
+/* Grep — teal */
+.tool-grep {
+  border-color: var(--neon-teal);
+  box-shadow:
+    0 0 8px rgba(34, 211, 238, 0.2),
+    0 0 20px rgba(34, 211, 238, 0.08);
+}
+
+.tool-grep:hover {
+  box-shadow:
+    0 0 14px rgba(34, 211, 238, 0.35),
+    0 0 30px rgba(34, 211, 238, 0.15);
+}
+
+.tool-grep .node-header {
+  color: var(--neon-teal);
+}
+
+/* Glob — gold */
+.tool-glob {
+  border-color: var(--neon-gold);
+  box-shadow:
+    0 0 8px rgba(251, 191, 36, 0.2),
+    0 0 20px rgba(251, 191, 36, 0.08);
+}
+
+.tool-glob:hover {
+  box-shadow:
+    0 0 14px rgba(251, 191, 36, 0.35),
+    0 0 30px rgba(251, 191, 36, 0.15);
+}
+
+.tool-glob .node-header {
+  color: var(--neon-gold);
+}
+
+/* Web — cyan (alternate shade) */
+.tool-web {
+  border-color: var(--neon-cyan);
+  box-shadow:
+    0 0 8px rgba(0, 212, 255, 0.2),
+    0 0 20px rgba(0, 212, 255, 0.08);
+}
+
+.tool-web:hover {
+  box-shadow:
+    0 0 14px rgba(0, 212, 255, 0.35),
+    0 0 30px rgba(0, 212, 255, 0.15);
+}
+
+.tool-web .node-header {
+  color: var(--neon-cyan);
+}
+
+/* Task — gold */
+.tool-task {
+  border-color: var(--neon-gold);
+  box-shadow:
+    0 0 8px rgba(251, 191, 36, 0.2),
+    0 0 20px rgba(251, 191, 36, 0.08);
+}
+
+.tool-task:hover {
+  box-shadow:
+    0 0 14px rgba(251, 191, 36, 0.35),
+    0 0 30px rgba(251, 191, 36, 0.15);
+}
+
+.tool-task .node-header {
+  color: var(--neon-gold);
+}
+
+/* ============================================================
+   Special Node Types
+   ============================================================ */
+
+/* User node — emerald border, subtle gradient */
+.user-node {
+  border-color: var(--neon-emerald);
+  background: linear-gradient(
+    135deg,
+    rgba(52, 211, 153, 0.06) 0%,
+    var(--bg-secondary) 70%
+  );
+  box-shadow:
+    0 0 8px rgba(52, 211, 153, 0.2),
+    0 0 20px rgba(52, 211, 153, 0.08);
+}
+
+.user-node:hover {
+  box-shadow:
+    0 0 14px rgba(52, 211, 153, 0.35),
+    0 0 30px rgba(52, 211, 153, 0.15);
+}
+
+.user-node .node-header {
+  color: var(--neon-emerald);
+}
+
+/* Thinking node — dimmed, italic */
+.thinking-node {
+  opacity: 0.6;
+  border-color: var(--border-color);
+  box-shadow: none;
+}
+
+.thinking-node .node-label {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.thinking-node:hover {
+  opacity: 0.8;
+  box-shadow: 0 0 8px rgba(42, 42, 62, 0.3);
+}
+
+/* Active thinking node — bright purple glow, pulsing */
+.thinking-node.thinking-active {
+  opacity: 1;
+  border-color: var(--neon-purple);
+  box-shadow:
+    0 0 12px rgba(168, 85, 247, 0.3),
+    0 0 30px rgba(168, 85, 247, 0.12);
+  animation: thinking-glow 2s ease-in-out infinite;
+}
+
+.thinking-node.thinking-active .node-header {
+  color: var(--neon-purple);
+}
+
+.thinking-node.thinking-active .node-label {
+  color: var(--text-primary);
+}
+
+@keyframes thinking-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 12px rgba(168, 85, 247, 0.3),
+      0 0 30px rgba(168, 85, 247, 0.12);
+  }
+  50% {
+    box-shadow:
+      0 0 20px rgba(168, 85, 247, 0.5),
+      0 0 45px rgba(168, 85, 247, 0.2),
+      0 0 70px rgba(168, 85, 247, 0.08);
+  }
+}
+
+/* Text node — gray border, no glow */
+.text-node {
+  border-color: var(--neon-gray);
+  box-shadow: none;
+}
+
+.text-node:hover {
+  box-shadow: 0 0 8px rgba(107, 114, 128, 0.2);
+}
+
+.text-node .node-header {
+  color: var(--neon-gray);
+}
+
+/* System node — very muted, smaller */
+.system-node {
+  opacity: 0.5;
+  border-color: var(--border-color);
+  box-shadow: none;
+  min-width: 160px;
+  max-width: 240px;
+}
+
+.system-node .node-label {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.system-node .node-header {
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+.system-node:hover {
+  opacity: 0.7;
+}
+
+/* ============================================================
+   Animations
+   ============================================================ */
+
+/* Neon pulse — plays twice on new nodes */
+@keyframes neon-pulse {
+  0% {
+    box-shadow:
+      0 0 8px var(--pulse-color, rgba(168, 85, 247, 0.2)),
+      0 0 20px var(--pulse-color, rgba(168, 85, 247, 0.08));
+  }
+  50% {
+    box-shadow:
+      0 0 18px var(--pulse-color, rgba(168, 85, 247, 0.45)),
+      0 0 40px var(--pulse-color, rgba(168, 85, 247, 0.2)),
+      0 0 60px var(--pulse-color, rgba(168, 85, 247, 0.08));
+  }
+  100% {
+    box-shadow:
+      0 0 8px var(--pulse-color, rgba(168, 85, 247, 0.2)),
+      0 0 20px var(--pulse-color, rgba(168, 85, 247, 0.08));
+  }
+}
+
+.node-new {
+  animation: neon-pulse 0.6s ease-in-out 2;
+}
+
+/* Spin — for loading spinners */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Spinner element */
+.spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--neon-cyan);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  display: none;
+  flex-shrink: 0;
+}
+
+.node-running .spinner {
+  display: inline-block;
+}
+
+/* ============================================================
+   Thinking / Activity Indicator
+   ============================================================ */
+
+@keyframes indicator-pulse {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 1; }
+}
+
+@keyframes indicator-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes indicator-dot {
+  0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1.2); }
+}

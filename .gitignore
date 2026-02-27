@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-electron/
+*.js.map
+
+# Debug/test scripts
+debug-*.js
+inspect-*.js
+test-*.js

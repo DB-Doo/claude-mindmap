@@ -1,0 +1,16 @@
+appId: com.claude.mindmap
+productName: Claude Mind Map
+directories:
+  output: release
+win:
+  target:
+    - nsis
+  icon: null
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+files:
+  - dist
+  - dist-electron
+  - node_modules/chokidar/**/*
+  - node_modules/readdirp/**/*

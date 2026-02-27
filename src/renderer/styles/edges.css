@@ -1,0 +1,272 @@
+/* ============================================================
+   edges.css — Edge Styling and React Flow Overrides
+   Mind Map Visualizer
+   ============================================================ */
+
+/* ----- Base Edge Path ----- */
+
+.react-flow__edge-path {
+  stroke-opacity: 0.6;
+  transition:
+    stroke-opacity var(--transition-normal),
+    stroke-width var(--transition-normal);
+}
+
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-opacity: 1;
+}
+
+/* ----- Neon Edge: Glow Layer (background, blurred) ----- */
+
+.neon-edge-glow {
+  stroke-width: 6px;
+  filter: blur(3px);
+  opacity: 0.4;
+  stroke-linecap: round;
+  pointer-events: none;
+  transition: opacity var(--transition-normal);
+}
+
+.react-flow__edge:hover .neon-edge-glow {
+  opacity: 0.65;
+}
+
+/* ----- Neon Edge: Line Layer (foreground, crisp) ----- */
+
+.neon-edge-line {
+  stroke-width: 2px;
+  opacity: 0.8;
+  stroke-linecap: round;
+  fill: none;
+  transition: opacity var(--transition-normal);
+}
+
+.react-flow__edge:hover .neon-edge-line {
+  opacity: 1;
+  stroke-width: 2.5px;
+}
+
+/* ----- Edge Particle (animated dot traveling along path) ----- */
+
+.edge-particle {
+  r: 3;
+  opacity: 0.9;
+  filter: blur(0.5px);
+  pointer-events: none;
+}
+
+/* Pulse effect for particles */
+@keyframes particle-glow {
+  0%, 100% {
+    opacity: 0.9;
+    r: 3;
+  }
+  50% {
+    opacity: 0.5;
+    r: 2;
+  }
+}
+
+.edge-particle.animate {
+  animation: particle-glow 1.5s ease-in-out infinite;
+}
+
+/* ============================================================
+   Edge Color Utilities
+   Use --edge-color CSS variable per-edge for stroke colors
+   ============================================================ */
+
+.edge-orange .neon-edge-glow,
+.edge-orange .neon-edge-line {
+  stroke: var(--neon-orange);
+}
+.edge-orange .edge-particle {
+  fill: var(--neon-orange);
+}
+
+.edge-cyan .neon-edge-glow,
+.edge-cyan .neon-edge-line {
+  stroke: var(--neon-cyan);
+}
+.edge-cyan .edge-particle {
+  fill: var(--neon-cyan);
+}
+
+.edge-pink .neon-edge-glow,
+.edge-pink .neon-edge-line {
+  stroke: var(--neon-pink);
+}
+.edge-pink .edge-particle {
+  fill: var(--neon-pink);
+}
+
+.edge-purple .neon-edge-glow,
+.edge-purple .neon-edge-line {
+  stroke: var(--neon-purple);
+}
+.edge-purple .edge-particle {
+  fill: var(--neon-purple);
+}
+
+.edge-teal .neon-edge-glow,
+.edge-teal .neon-edge-line {
+  stroke: var(--neon-teal);
+}
+.edge-teal .edge-particle {
+  fill: var(--neon-teal);
+}
+
+.edge-gold .neon-edge-glow,
+.edge-gold .neon-edge-line {
+  stroke: var(--neon-gold);
+}
+.edge-gold .edge-particle {
+  fill: var(--neon-gold);
+}
+
+.edge-emerald .neon-edge-glow,
+.edge-emerald .neon-edge-line {
+  stroke: var(--neon-emerald);
+}
+.edge-emerald .edge-particle {
+  fill: var(--neon-emerald);
+}
+
+.edge-gray .neon-edge-glow,
+.edge-gray .neon-edge-line {
+  stroke: var(--neon-gray);
+}
+.edge-gray .edge-particle {
+  fill: var(--neon-gray);
+}
+
+/* ============================================================
+   React Flow Overrides — Dark Cyberpunk Theme
+   ============================================================ */
+
+/* ----- Controls ----- */
+
+.react-flow__controls {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.react-flow__controls button {
+  background: var(--bg-secondary);
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.react-flow__controls button:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.react-flow__controls button:last-child {
+  border-bottom: none;
+}
+
+.react-flow__controls button svg {
+  fill: currentColor;
+  max-width: 14px;
+  max-height: 14px;
+}
+
+/* ----- Minimap ----- */
+
+.react-flow__minimap {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.react-flow__minimap-mask {
+  fill: rgba(168, 85, 247, 0.08);
+  stroke: var(--neon-purple);
+  stroke-width: 1;
+  stroke-opacity: 0.3;
+}
+
+.react-flow__minimap-node {
+  fill: var(--bg-tertiary);
+  stroke: var(--border-color);
+  stroke-width: 1;
+}
+
+/* ----- Attribution ----- */
+
+.react-flow__attribution {
+  opacity: 0.15;
+  font-size: 8px;
+}
+
+.react-flow__attribution a {
+  color: var(--text-muted) !important;
+}
+
+/* ----- Background / Grid ----- */
+
+.react-flow__background {
+  background-color: var(--bg-primary);
+}
+
+/* ----- Selection Box ----- */
+
+.react-flow__selection {
+  background: rgba(168, 85, 247, 0.06);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 2px;
+}
+
+/* ----- Handles (connection points) ----- */
+
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  background: var(--bg-tertiary);
+  border: 1.5px solid var(--neon-gray);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.react-flow__handle:hover,
+.react-flow__handle.connecting {
+  background: var(--neon-purple);
+  border-color: var(--neon-purple);
+  box-shadow: 0 0 6px rgba(168, 85, 247, 0.5);
+}
+
+/* ----- Connection Line (while dragging) ----- */
+
+.react-flow__connection-path {
+  stroke: var(--neon-purple);
+  stroke-width: 2px;
+  stroke-dasharray: 6 3;
+  opacity: 0.7;
+}
+
+/* ----- Pane ----- */
+
+.react-flow__pane {
+  cursor: grab;
+}
+
+.react-flow__pane:active {
+  cursor: grabbing;
+}
