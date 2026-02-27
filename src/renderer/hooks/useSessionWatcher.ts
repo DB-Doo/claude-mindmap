@@ -130,11 +130,9 @@ export function useSessionWatcher(): void {
         const map = new Map<string, { activity: any; sessionName: string }>();
         for (const r of results) {
           const activity = detectActivity(r.tailMessages);
-          if (activity !== 'idle') {
-            const session = sessions.find((s) => s.filePath === r.filePath);
-            const name = session?.displayText || session?.sessionId || 'Session';
-            map.set(r.filePath, { activity, sessionName: name });
-          }
+          const session = sessions.find((s) => s.filePath === r.filePath);
+          const name = session?.displayText || session?.sessionId || 'Session';
+          map.set(r.filePath, { activity, sessionName: name });
         }
         setBackgroundActivities(map);
       }).catch(() => {});

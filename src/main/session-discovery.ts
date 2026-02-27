@@ -240,9 +240,23 @@ function parseHistoryFile(historyPath: string): Map<string, HistoryEntry> {
 const ACTIVE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
+ * Check if a session has a lock file, indicating it's currently running.
+ * Claude Code creates .claude/tasks/<sessionId>/.lock while a session is active.
+ */
+function hasLockFile(sessionId: string, claudeDir: string): boolean {
+  const lockPath = path.join(claudeDir, 'tasks', sessionId, '.lock');
+  return fs.existsSync(lockPath);
+}
+
+/**
  * Detect how/why a session ended by reading the tail of the JSONL file.
  */
-function detectEndReason(filePath: string, mtimeMs: number): SessionEndReason {
+function detectEndReason(filePath: string, mtimeMs: number, sessionId: string, claudeDir: string): SessionEndReason {
+  // Lock file present = definitely active
+  if (hasLockFile(sessionId, claudeDir)) {
+    return 'active';
+  }
+
   // Still actively being written to?
   if (Date.now() - mtimeMs < ACTIVE_THRESHOLD_MS) {
     return 'active';
@@ -331,7 +345,7 @@ export async function discoverSessions(): Promise<SessionInfo[]> {
     const subtitle = meta.projectName
       ? (entry.display || meta.firstMessage || undefined)
       : undefined;
-    const endReason = detectEndReason(logFile, stat.mtimeMs);
+    const endReason = detectEndReason(logFile, stat.mtimeMs, entry.sessionId, claudeDir);
     sessions.push({
       sessionId: entry.sessionId,
       project: entry.project,

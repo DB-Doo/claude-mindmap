@@ -76,11 +76,19 @@ export default function MindMap() {
     const hasNewNodes = nodes.length > prevNodeCount.current;
 
     if (wasEmpty && nodes.length > 0) {
-      // Session just loaded — fit all nodes into view
+      // Session just loaded
+      const shouldCenterOnLast = useSessionStore.getState().centerOnLoad;
+      useSessionStore.setState({ centerOnLoad: false });
+      // Fit all first, then if banner-triggered, center on last node after layout settles
       isProgrammaticMove.current = true;
       setTimeout(() => {
-        fitView({ duration: 400, padding: 0.15 });
-        setTimeout(() => { isProgrammaticMove.current = false; }, 500);
+        fitView({ duration: 300, padding: 0.15 });
+        if (shouldCenterOnLast) {
+          setTimeout(() => {
+            useSessionStore.getState().requestCenter();
+          }, 400);
+        }
+        setTimeout(() => { isProgrammaticMove.current = false; }, shouldCenterOnLast ? 1200 : 500);
       }, 150);
       userPanned.current = false;
     } else if (autoFollow && hasNewNodes && !userPanned.current) {

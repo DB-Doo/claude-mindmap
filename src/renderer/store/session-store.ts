@@ -45,6 +45,7 @@ interface SessionState {
   autoFollow: boolean;
   centerRequested: boolean;
   centerStartRequested: boolean;
+  centerOnLoad: boolean;
   hasNewNodesSinceManualPan: boolean;
   newNodeIds: Set<string>;
   liveActivity: LiveActivity;
@@ -401,6 +402,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   autoFollow: true,
   centerRequested: false,
   centerStartRequested: false,
+  centerOnLoad: false,
   hasNewNodesSinceManualPan: false,
   newNodeIds: new Set<string>(),
   liveActivity: 'idle' as LiveActivity,
