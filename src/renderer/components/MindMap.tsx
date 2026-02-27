@@ -44,10 +44,12 @@ export default function MindMap() {
   const clearCenterRequest = useSessionStore(s => s.clearCenterRequest);
   const newNodeIds = useSessionStore(s => s.newNodeIds);
   const clearNewNodes = useSessionStore(s => s.clearNewNodes);
+  const activeSessionPath = useSessionStore(s => s.activeSessionPath);
 
   const { nodes, edges } = useAutoLayout(graphNodes, graphEdges);
   const { fitView, setCenter, getZoom } = useReactFlow();
   const prevNodeCount = useRef(0);
+  const prevSessionPath = useRef<string | null>(null);
 
   // Track whether the user has manually panned/zoomed.
   // Set true on user interaction, cleared on programmatic moves.
@@ -62,7 +64,7 @@ export default function MindMap() {
     }
   }, []);
 
-  // When nodes go from 0 to N (session load/switch), fitView to show all.
+  // When session switches (path change or 0→N), fitView to show all.
   // When nodes go from N to N+k (incremental), pan to the newest node
   // ONLY if the user hasn't manually panned away.
   useEffect(() => {
@@ -72,11 +74,14 @@ export default function MindMap() {
       return;
     }
 
+    const sessionChanged = activeSessionPath !== prevSessionPath.current;
+    prevSessionPath.current = activeSessionPath;
+
     const wasEmpty = prevNodeCount.current === 0;
     const hasNewNodes = nodes.length > prevNodeCount.current;
 
-    if (wasEmpty && nodes.length > 0) {
-      // Session just loaded
+    if (sessionChanged || (wasEmpty && nodes.length > 0)) {
+      // Session just loaded (from cache, file, or fresh)
       const shouldCenterOnLast = useSessionStore.getState().centerOnLoad;
       useSessionStore.setState({ centerOnLoad: false });
       isProgrammaticMove.current = true;
@@ -121,7 +126,7 @@ export default function MindMap() {
     }
 
     prevNodeCount.current = nodes.length;
-  }, [nodes.length, autoFollow, fitView, setCenter, getZoom]);
+  }, [nodes.length, activeSessionPath, autoFollow, fitView, setCenter, getZoom]);
 
   // Center-on-demand: triggered by toggleAutoFollow(ON) or Recenter button
   useEffect(() => {
@@ -231,7 +236,6 @@ export default function MindMap() {
       onNodeClick={onNodeClick}
       onPaneClick={onPaneClick}
       onMoveStart={onMoveStart}
-      fitView
       translateExtent={translateExtent}
       minZoom={0.1}
       maxZoom={2}

@@ -26,6 +26,11 @@ function truncate(s: string, max: number): string {
   return s.length > max ? s.slice(0, max) + '\u2026' : s;
 }
 
+const MAX_DETAIL_LENGTH = 3000;
+function truncateDetail(s: string): string {
+  return s.length > MAX_DETAIL_LENGTH ? s.slice(0, MAX_DETAIL_LENGTH) + '\n... (truncated)' : s;
+}
+
 function formatToolLabel(toolName: string, input: any): string {
   switch (toolName) {
     case 'Bash':
@@ -282,7 +287,7 @@ export function buildGraph(
                 kind: 'tool_use',
                 toolName: block.name,
                 label: formatToolLabel(block.name, block.input),
-                detail: JSON.stringify(block.input, null, 2),
+                detail: truncateDetail(JSON.stringify(block.input, null, 2)),
                 status,
                 timestamp: msg.timestamp,
                 isNew: false,

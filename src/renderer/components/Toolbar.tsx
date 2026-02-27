@@ -105,6 +105,9 @@ export default function Toolbar() {
   const searchQuery = useSessionStore(s => s.searchQuery);
   const setSearchQuery = useSessionStore(s => s.setSearchQuery);
   const tokenStats = useSessionStore(s => s.tokenStats);
+  const isWindowed = useSessionStore(s => s.isWindowed);
+  const totalMessageCount = useSessionStore(s => s.totalMessageCount);
+  const loadFullSession = useSessionStore(s => s.loadFullSession);
 
   // Debounced search: local state updates instantly, store updates after 200ms
   const [localSearch, setLocalSearch] = useState(searchQuery);
@@ -165,6 +168,21 @@ export default function Toolbar() {
       />
       <div style={statsStyle}>
         <span>{nodeCount} nodes</span>
+        {isWindowed && (
+          <button
+            style={{
+              ...btn,
+              color: '#fbbf24',
+              borderColor: '#fbbf24',
+              fontSize: 10,
+              padding: '2px 8px',
+            }}
+            onClick={loadFullSession}
+            title={`Currently showing last 20 turns. Click to load all ${totalMessageCount} messages.`}
+          >
+            Load all ({totalMessageCount} msgs)
+          </button>
+        )}
         {tokenStats.inputTokens > 0 && (
           <>
             <span>In: {formatTokens(tokenStats.inputTokens)}</span>
