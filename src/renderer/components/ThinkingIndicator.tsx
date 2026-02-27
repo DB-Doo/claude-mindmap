@@ -6,6 +6,7 @@ const ACTIVITY_CONFIG: Record<LiveActivity, { label: string; icon: string; color
   tool_running: { label: 'Running tool', icon: '⚡', color: '#ff6b35' },
   responding: { label: 'Claude is responding', icon: '💬', color: '#00d4ff' },
   waiting_on_user: { label: 'Waiting on you', icon: '⏳', color: '#34d399' },
+  compacting: { label: 'Compacting conversation', icon: '📋', color: '#fbbf24' },
 };
 
 function ActivityBanner({
@@ -82,17 +83,24 @@ function ActivityBanner({
 export default function ThinkingIndicator() {
   const backgroundActivities = useSessionStore((s) => s.backgroundActivities);
   const activeSessionPath = useSessionStore((s) => s.activeSessionPath);
+  const liveActivity = useSessionStore((s) => s.liveActivity);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const requestCenter = useSessionStore((s) => s.requestCenter);
 
   const entries = Array.from(backgroundActivities.entries())
-    .map(([filePath, { activity, sessionName }]) => ({
-      filePath,
-      activity,
-      sessionName,
-      config: ACTIVITY_CONFIG[activity],
-      isCurrent: filePath === activeSessionPath,
-    }));
+    .map(([filePath, { activity, sessionName }]) => {
+      // For the current session, use real-time liveActivity (updated on every
+      // message append) instead of the polled value (3s interval, 5-msg tail).
+      const isCurrent = filePath === activeSessionPath;
+      const resolvedActivity = isCurrent ? liveActivity : activity;
+      return {
+        filePath,
+        activity: resolvedActivity,
+        sessionName,
+        config: ACTIVITY_CONFIG[resolvedActivity],
+        isCurrent,
+      };
+    });
 
   if (entries.length === 0) return null;
 

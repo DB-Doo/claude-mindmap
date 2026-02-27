@@ -9,7 +9,7 @@ import {
 } from '../../shared/types';
 import { buildGraph } from './graph-builder';
 
-export type LiveActivity = 'idle' | 'thinking' | 'tool_running' | 'responding' | 'waiting_on_user';
+export type LiveActivity = 'idle' | 'thinking' | 'tool_running' | 'responding' | 'waiting_on_user' | 'compacting';
 
 export interface TokenStats {
   inputTokens: number;
@@ -266,8 +266,9 @@ export function detectActivity(messages: JSONLMessage[]): LiveActivity {
     if (msg.type === 'progress') continue;
 
     // System messages (turn duration) appear after Claude finishes a turn.
-    // If we see one before any assistant/user message, Claude's turn is done.
+    // Compaction boundaries mean Claude is actively compacting context.
     if (msg.type === 'system') {
+      if ((msg as any).subtype === 'compact_boundary') return 'compacting';
       sawSystem = true;
       continue;
     }
