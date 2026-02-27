@@ -430,6 +430,44 @@ export function buildGraph(
     }
   }
 
+  // ---- Compute turn tokens for user nodes ----
+  // Walk messages: each user message starts a turn, accumulate assistant tokens until next user msg
+  {
+    const userNodeMap = new Map<string, GraphNode>();
+    for (const n of nodes) {
+      if (n.kind === 'user') userNodeMap.set(n.id, n);
+    }
+
+    let currentUserNode: GraphNode | null = null;
+    let turnIn = 0;
+    let turnOut = 0;
+
+    for (const msg of messages) {
+      if (msg.type === 'user') {
+        // Flush previous turn
+        if (currentUserNode && (turnIn > 0 || turnOut > 0)) {
+          currentUserNode.turnInputTokens = turnIn;
+          currentUserNode.turnOutputTokens = turnOut;
+        }
+        // Start new turn if this user message has a node
+        currentUserNode = userNodeMap.get(msg.uuid) || null;
+        turnIn = 0;
+        turnOut = 0;
+      } else if (msg.type === 'assistant' && currentUserNode) {
+        const usage = (msg as any).message?.usage;
+        if (usage) {
+          turnIn += usage.input_tokens || 0;
+          turnOut += usage.output_tokens || 0;
+        }
+      }
+    }
+    // Flush last turn
+    if (currentUserNode && (turnIn > 0 || turnOut > 0)) {
+      currentUserNode.turnInputTokens = turnIn;
+      currentUserNode.turnOutputTokens = turnOut;
+    }
+  }
+
   // ---- Synthetic session-end node ----
   if (endReason && endReason !== 'active' && nodes.length > 0) {
     const lastNode = nodes[nodes.length - 1];

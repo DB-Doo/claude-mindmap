@@ -4,6 +4,12 @@ import { motion } from 'framer-motion';
 import type { GraphNode } from '../../shared/types';
 import CollapseButton from './CollapseButton';
 
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k';
+  return String(n);
+}
+
 function UserNode({ data, id }: NodeProps) {
   const gn = data as unknown as GraphNode;
   const dimmed = gn.searchMatch === false && gn.searchMatch !== undefined;
@@ -24,6 +30,11 @@ function UserNode({ data, id }: NodeProps) {
       <div className="node-header">
         <span className="node-icon">{'\u25B6'}</span>
         <span>You</span>
+        {(gn.turnInputTokens || gn.turnOutputTokens) ? (
+          <span className="node-tokens">
+            {formatTokens((gn.turnInputTokens || 0) + (gn.turnOutputTokens || 0))} tok
+          </span>
+        ) : null}
       </div>
       <div className="node-label">{gn.label}</div>
       <Handle type="source" position={Position.Bottom} />

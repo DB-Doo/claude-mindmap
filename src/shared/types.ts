@@ -107,6 +107,9 @@ export interface GraphNode {
   outputTokens?: number;
   /** For user nodes: snippet of what they're replying to. */
   replyToSnippet?: string;
+  /** For user nodes: total tokens used in the response turn below. */
+  turnInputTokens?: number;
+  turnOutputTokens?: number;
   /** Pre-computed lowercase search text (label + detail + toolName). */
   _searchText?: string;
 }
