@@ -15,6 +15,12 @@ function UserNode({ data, id }: NodeProps) {
   const content = (
     <>
       <Handle type="target" position={Position.Top} />
+      {gn.replyToSnippet && (
+        <div className="reply-to-snippet">
+          <span className="reply-to-icon">{'\u21A9'}</span>
+          <span className="reply-to-text">{gn.replyToSnippet}</span>
+        </div>
+      )}
       <div className="node-header">
         <span className="node-icon">{'\u25B6'}</span>
         <span>You</span>

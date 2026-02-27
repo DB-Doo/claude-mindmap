@@ -112,6 +112,22 @@ export function buildGraph(
     }
   }
 
+  // ---- Collect assistant text for reply-to snippets ----
+  // Maps assistant message uuid → last text content from that message
+  const assistantTextByUuid = new Map<string, string>();
+  for (const msg of messages) {
+    if (msg.type !== 'assistant') continue;
+    const content = (msg as AssistantMessage).message?.content;
+    if (!Array.isArray(content)) continue;
+    // Find the last text block in the assistant message
+    for (let i = content.length - 1; i >= 0; i--) {
+      if (content[i].type === 'text') {
+        assistantTextByUuid.set(msg.uuid, (content[i] as any).text);
+        break;
+      }
+    }
+  }
+
   // ---- Second pass: build nodes ----
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
@@ -150,6 +166,11 @@ export function buildGraph(
 
       if (content == null) continue;
 
+      // Resolve reply-to snippet from parent assistant message
+      const replyToSnippet = msg.parentUuid
+        ? truncate(assistantTextByUuid.get(msg.parentUuid) || '', 80)
+        : undefined;
+
       if (typeof content === 'string') {
         // Skip system-injected messages (task notifications, system reminders, etc.)
         const trimmed = content.trimStart();
@@ -171,6 +192,7 @@ export function buildGraph(
             status: null,
             timestamp: msg.timestamp,
             isNew: false,
+            replyToSnippet: replyToSnippet || undefined,
           },
           msg.uuid,
         );
@@ -226,6 +248,7 @@ export function buildGraph(
           status: null,
           timestamp: msg.timestamp,
           isNew: false,
+          replyToSnippet: replyToSnippet || undefined,
         },
         msg.uuid,
       );

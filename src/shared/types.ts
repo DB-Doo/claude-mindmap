@@ -105,6 +105,8 @@ export interface GraphNode {
   /** Tokens used by the assistant API call that produced this node. */
   inputTokens?: number;
   outputTokens?: number;
+  /** For user nodes: snippet of what they're replying to. */
+  replyToSnippet?: string;
   /** Pre-computed lowercase search text (label + detail + toolName). */
   _searchText?: string;
 }
