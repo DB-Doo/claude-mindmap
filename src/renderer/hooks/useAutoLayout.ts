@@ -126,12 +126,18 @@ export function useAutoLayout(
 
     const cache = posCache.current;
 
-    // Count new nodes not in cache
+    // Count new nodes not in cache and check if any cached nodes were removed
     let newCount = 0;
     for (const n of graphNodes) {
       if (!cache.has(n.id)) newCount++;
     }
-    const isIncremental = newCount > 0 && newCount < Math.max(graphNodes.length * 0.3, 20);
+    const currentIds = new Set(graphNodes.map(n => n.id));
+    let removedCount = 0;
+    for (const key of cache.keys()) {
+      if (!currentIds.has(key)) removedCount++;
+    }
+    // If nodes were removed (filter toggle), force full relayout
+    const isIncremental = removedCount === 0 && newCount > 0 && newCount < Math.max(graphNodes.length * 0.3, 20);
 
     if (!isIncremental) {
       // Full conversation layout

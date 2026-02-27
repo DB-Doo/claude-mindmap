@@ -79,17 +79,29 @@ export default function MindMap() {
       // Session just loaded
       const shouldCenterOnLast = useSessionStore.getState().centerOnLoad;
       useSessionStore.setState({ centerOnLoad: false });
-      // Fit all first, then if banner-triggered, center on last node after layout settles
       isProgrammaticMove.current = true;
-      setTimeout(() => {
-        fitView({ duration: 300, padding: 0.15 });
-        if (shouldCenterOnLast) {
+      if (shouldCenterOnLast) {
+        // Banner click — skip fitView, go straight to last node after layout settles
+        const lastNode = nodes[nodes.length - 1];
+        if (lastNode && lastNode.position) {
+          const nodeWidth = lastNode.measured?.width ?? lastNode.width ?? 200;
+          const nodeHeight = lastNode.measured?.height ?? lastNode.height ?? 80;
+          const x = lastNode.position.x + nodeWidth / 2;
+          const y = lastNode.position.y + nodeHeight / 2;
           setTimeout(() => {
-            useSessionStore.getState().requestCenter();
-          }, 400);
+            setCenter(x, y, { duration: 400, zoom: 1 });
+            setTimeout(() => { isProgrammaticMove.current = false; }, 500);
+          }, 300);
+        } else {
+          isProgrammaticMove.current = false;
         }
-        setTimeout(() => { isProgrammaticMove.current = false; }, shouldCenterOnLast ? 1200 : 500);
-      }, 150);
+      } else {
+        // Normal session switch — fit all nodes into view
+        setTimeout(() => {
+          fitView({ duration: 400, padding: 0.15 });
+          setTimeout(() => { isProgrammaticMove.current = false; }, 500);
+        }, 150);
+      }
       userPanned.current = false;
     } else if (autoFollow && hasNewNodes && !userPanned.current) {
       // Incremental update — pan to newest node (user hasn't panned away)
@@ -142,16 +154,17 @@ export default function MindMap() {
       const nodeHeight = firstNode.measured?.height ?? firstNode.height ?? 80;
       const x = firstNode.position.x + nodeWidth / 2;
       const y = firstNode.position.y + nodeHeight / 2;
+      const currentZoom = getZoom();
       isProgrammaticMove.current = true;
       userPanned.current = false;
       setTimeout(() => {
-        setCenter(x, y, { duration: 400, zoom: 1 });
+        setCenter(x, y, { duration: 400, zoom: Math.max(currentZoom, 0.5) });
         setTimeout(() => { isProgrammaticMove.current = false; }, 500);
       }, 100);
     }
 
     clearCenterRequest();
-  }, [centerStartRequested, nodes, setCenter, clearCenterRequest]);
+  }, [centerStartRequested, nodes, setCenter, getZoom, clearCenterRequest]);
 
   // Clear isNew flags after animation
   useEffect(() => {
@@ -205,7 +218,7 @@ export default function MindMap() {
       if (x + w > maxX) maxX = x + w;
       if (y + h > maxY) maxY = y + h;
     }
-    const pad = 800;
+    const pad = 2000;
     return [[minX - pad, minY - pad], [maxX + pad, maxY + pad]];
   }, [nodes]);
 
