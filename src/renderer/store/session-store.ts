@@ -11,6 +11,11 @@ import { buildGraph } from './graph-builder';
 
 export type LiveActivity = 'idle' | 'thinking' | 'tool_running' | 'responding' | 'waiting_on_user' | 'compacting';
 
+export interface ActivityInfo {
+  activity: LiveActivity;
+  detail?: string; // e.g., tool name for tool_running
+}
+
 export interface TokenStats {
   inputTokens: number;
   outputTokens: number;
@@ -50,11 +55,12 @@ interface SessionState {
   hasNewNodesSinceManualPan: boolean;
   newNodeIds: Set<string>;
   liveActivity: LiveActivity;
+  liveActivityDetail: string | undefined;
   lastActivityTime: number;
   collapsedNodes: Set<string>;
   searchQuery: string;
   tokenStats: TokenStats;
-  backgroundActivities: Map<string, { activity: LiveActivity; sessionName: string }>;
+  backgroundActivities: Map<string, { activity: LiveActivity; detail?: string; sessionName: string }>;
   isWindowed: boolean;
   totalMessageCount: number;
 
@@ -76,7 +82,7 @@ interface SessionState {
   setIdle: () => void;
   toggleCollapse: (nodeId: string) => void;
   setSearchQuery: (query: string) => void;
-  setBackgroundActivities: (map: Map<string, { activity: LiveActivity; sessionName: string }>) => void;
+  setBackgroundActivities: (map: Map<string, { activity: LiveActivity; detail?: string; sessionName: string }>) => void;
   loadFullSession: () => void;
   navigateUserMessage: (direction: 'prev' | 'next') => void;
   clearCenterOnNode: () => void;
@@ -250,13 +256,13 @@ function applyFilters(
  * Detect what Claude is currently doing based on the tail of the message stream.
  * Walk backwards from the end to find the last meaningful message type.
  */
-export function detectActivity(messages: JSONLMessage[]): LiveActivity {
+export function detectActivity(messages: JSONLMessage[]): ActivityInfo {
   // If the last message is more than 30 seconds old, the session isn't live
   if (messages.length > 0) {
     const last = messages[messages.length - 1];
     if (last.timestamp) {
       const age = Date.now() - new Date(last.timestamp).getTime();
-      if (age > 30_000) return 'idle';
+      if (age > 30_000) return { activity: 'idle' };
     }
   }
 
@@ -271,7 +277,7 @@ export function detectActivity(messages: JSONLMessage[]): LiveActivity {
     // System messages (turn duration) appear after Claude finishes a turn.
     // Compaction boundaries mean Claude is actively compacting context.
     if (msg.type === 'system') {
-      if ((msg as any).subtype === 'compact_boundary') return 'compacting';
+      if ((msg as any).subtype === 'compact_boundary') return { activity: 'compacting' };
       sawSystem = true;
       continue;
     }
@@ -284,24 +290,24 @@ export function detectActivity(messages: JSONLMessage[]): LiveActivity {
       // If a system message followed this assistant message, the turn is
       // complete — Claude finished and is now waiting on the user.
       if (sawSystem) {
-        if (last.type === 'text') return 'waiting_on_user';
+        if (last.type === 'text') return { activity: 'waiting_on_user' };
         // After a tool_use + system = tool finished, Claude is processing result
-        return 'idle';
+        return { activity: 'idle' };
       }
 
-      if (last.type === 'thinking') return 'thinking';
-      if (last.type === 'tool_use') return 'tool_running';
-      if (last.type === 'text') return 'responding';
-      return 'idle';
+      if (last.type === 'thinking') return { activity: 'thinking' };
+      if (last.type === 'tool_use') return { activity: 'tool_running', detail: last.name };
+      if (last.type === 'text') return { activity: 'responding' };
+      return { activity: 'idle' };
     }
 
     // A user message (whether string prompt or tool_result) means
     // Claude hasn't started replying yet — still idle from our POV
-    if (msg.type === 'user') return 'idle';
+    if (msg.type === 'user') return { activity: 'idle' };
 
     break;
   }
-  return 'idle';
+  return { activity: 'idle' };
 }
 
 // ---------------------------------------------------------------------------
@@ -417,6 +423,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   hasNewNodesSinceManualPan: false,
   newNodeIds: new Set<string>(),
   liveActivity: 'idle' as LiveActivity,
+  liveActivityDetail: undefined as string | undefined,
   lastActivityTime: 0,
   collapsedNodes: new Set<string>(),
   searchQuery: '',
@@ -448,7 +455,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     if (cached && cached.length > 0) {
       // Pass state with updated activeSessionPath so fullRebuild finds the correct session
       const result = fullRebuild({ ...state, activeSessionPath: path }, cached);
-      const activity = detectActivity(cached);
+      const { activity, detail } = detectActivity(cached);
       const tokenStats = computeTokenStats(cached);
       set({
         activeSessionPath: path,
@@ -462,6 +469,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         collapsedNodes: new Set<string>(),
         searchQuery: '',
         liveActivity: activity,
+        liveActivityDetail: detail,
         lastActivityTime: Date.now(),
         tokenStats,
         isWindowed: result.isWindowed,
@@ -495,7 +503,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   setMessages: (messages) => {
     const state = get();
     const result = fullRebuild(state, messages);
-    const activity = detectActivity(messages);
+    const { activity, detail } = detectActivity(messages);
     const tokenStats = computeTokenStats(messages);
 
     // Keep session cache current
@@ -511,6 +519,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       edges: result.edges,
       newNodeIds: new Set<string>(),
       liveActivity: activity,
+      liveActivityDetail: detail,
       lastActivityTime: Date.now(),
       tokenStats,
       isWindowed: result.isWindowed,
@@ -543,7 +552,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       isNew: newIds.has(node.id),
     }));
 
-    const activity = detectActivity(combined);
+    const { activity, detail } = detectActivity(combined);
 
     // Incremental token stats: only compute delta from new messages
     const delta = computeTokenStats(messages);
@@ -568,6 +577,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       edges: result.edges,
       newNodeIds: newIds,
       liveActivity: activity,
+      liveActivityDetail: detail,
       lastActivityTime: Date.now(),
       tokenStats,
       isWindowed: result.isWindowed,
@@ -628,7 +638,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set({ nodes: clearedNodes, newNodeIds: new Set<string>() });
   },
 
-  setIdle: () => set({ liveActivity: 'idle' as LiveActivity }),
+  setIdle: () => set({ liveActivity: 'idle' as LiveActivity, liveActivityDetail: undefined }),
 
   toggleCollapse: (nodeId: string) => {
     const state = get();

@@ -127,12 +127,12 @@ export function useSessionWatcher(): void {
       }
 
       window.api.peekSessionActivity(activePaths).then((results) => {
-        const map = new Map<string, { activity: any; sessionName: string }>();
+        const map = new Map<string, { activity: any; detail?: string; sessionName: string }>();
         for (const r of results) {
-          const activity = detectActivity(r.tailMessages);
+          const { activity, detail } = detectActivity(r.tailMessages);
           const session = sessions.find((s) => s.filePath === r.filePath);
           const name = session?.displayText || session?.sessionId || 'Session';
-          map.set(r.filePath, { activity, sessionName: name });
+          map.set(r.filePath, { activity, detail, sessionName: name });
         }
         setBackgroundActivities(map);
       }).catch(() => {});
