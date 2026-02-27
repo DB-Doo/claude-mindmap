@@ -55,6 +55,24 @@ export default function MindMap() {
   // Set true on user interaction, cleared on programmatic moves.
   const userPanned = useRef(false);
   const isProgrammaticMove = useRef(false);
+  // Single cancelable timer for clearing isProgrammaticMove.
+  // Prevents race conditions when multiple programmatic moves overlap.
+  const progMoveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Mark start of a programmatic move. Cancels any pending clear timer. */
+  const beginProgrammaticMove = useCallback(() => {
+    if (progMoveTimer.current) clearTimeout(progMoveTimer.current);
+    isProgrammaticMove.current = true;
+  }, []);
+
+  /** Schedule end of programmatic move guard after animation completes. */
+  const endProgrammaticMoveAfter = useCallback((ms: number) => {
+    if (progMoveTimer.current) clearTimeout(progMoveTimer.current);
+    progMoveTimer.current = setTimeout(() => {
+      isProgrammaticMove.current = false;
+      progMoveTimer.current = null;
+    }, ms);
+  }, []);
 
   const onMoveStart = useCallback((_: any, event: any) => {
     // event is null for programmatic moves (setCenter, fitView)
@@ -84,7 +102,7 @@ export default function MindMap() {
       // Session just loaded (from cache, file, or fresh)
       const shouldCenterOnLast = useSessionStore.getState().centerOnLoad;
       useSessionStore.setState({ centerOnLoad: false });
-      isProgrammaticMove.current = true;
+      beginProgrammaticMove();
       if (shouldCenterOnLast) {
         // Banner click — skip fitView, go straight to last node after layout settles
         const lastNode = nodes[nodes.length - 1];
@@ -95,7 +113,7 @@ export default function MindMap() {
           const y = lastNode.position.y + nodeHeight / 2;
           setTimeout(() => {
             setCenter(x, y, { duration: 400, zoom: 1 });
-            setTimeout(() => { isProgrammaticMove.current = false; }, 500);
+            endProgrammaticMoveAfter(500);
           }, 300);
         } else {
           isProgrammaticMove.current = false;
@@ -104,7 +122,7 @@ export default function MindMap() {
         // Normal session switch — fit all nodes into view
         setTimeout(() => {
           fitView({ duration: 400, padding: 0.15 });
-          setTimeout(() => { isProgrammaticMove.current = false; }, 500);
+          endProgrammaticMoveAfter(500);
         }, 150);
       }
       userPanned.current = false;
@@ -117,16 +135,16 @@ export default function MindMap() {
         const x = lastNode.position.x + nodeWidth / 2;
         const y = lastNode.position.y + nodeHeight / 2;
         const currentZoom = getZoom();
-        isProgrammaticMove.current = true;
+        beginProgrammaticMove();
         setTimeout(() => {
           setCenter(x, y, { duration: 400, zoom: currentZoom });
-          setTimeout(() => { isProgrammaticMove.current = false; }, 500);
+          endProgrammaticMoveAfter(500);
         }, 100);
       }
     }
 
     prevNodeCount.current = nodes.length;
-  }, [nodes.length, activeSessionPath, autoFollow, fitView, setCenter, getZoom]);
+  }, [nodes.length, activeSessionPath, autoFollow, fitView, setCenter, getZoom, beginProgrammaticMove, endProgrammaticMoveAfter]);
 
   // Center-on-demand: triggered by toggleAutoFollow(ON) or Recenter button
   useEffect(() => {
@@ -138,16 +156,16 @@ export default function MindMap() {
       const nodeHeight = lastNode.measured?.height ?? lastNode.height ?? 80;
       const x = lastNode.position.x + nodeWidth / 2;
       const y = lastNode.position.y + nodeHeight / 2;
-      isProgrammaticMove.current = true;
+      beginProgrammaticMove();
       userPanned.current = false;
       setTimeout(() => {
         setCenter(x, y, { duration: 400, zoom: 1 });
-        setTimeout(() => { isProgrammaticMove.current = false; }, 500);
+        endProgrammaticMoveAfter(500);
       }, 100);
     }
 
     clearCenterRequest();
-  }, [centerRequested, nodes, setCenter, getZoom, clearCenterRequest]);
+  }, [centerRequested, nodes, setCenter, getZoom, clearCenterRequest, beginProgrammaticMove, endProgrammaticMoveAfter]);
 
   // Center on first node: triggered by Start button
   useEffect(() => {
@@ -160,16 +178,16 @@ export default function MindMap() {
       const x = firstNode.position.x + nodeWidth / 2;
       const y = firstNode.position.y + nodeHeight / 2;
       const currentZoom = getZoom();
-      isProgrammaticMove.current = true;
+      beginProgrammaticMove();
       userPanned.current = false;
       setTimeout(() => {
         setCenter(x, y, { duration: 400, zoom: Math.max(currentZoom, 0.5) });
-        setTimeout(() => { isProgrammaticMove.current = false; }, 500);
+        endProgrammaticMoveAfter(500);
       }, 100);
     }
 
     clearCenterRequest();
-  }, [centerStartRequested, nodes, setCenter, getZoom, clearCenterRequest]);
+  }, [centerStartRequested, nodes, setCenter, getZoom, clearCenterRequest, beginProgrammaticMove, endProgrammaticMoveAfter]);
 
   // Navigate to a specific node by ID (arrow navigation)
   const centerOnNodeId = useSessionStore(s => s.centerOnNodeId);
@@ -182,13 +200,13 @@ export default function MindMap() {
       const nodeHeight = target.measured?.height ?? target.height ?? 80;
       const x = (target.position.x as number) + (nodeWidth as number) / 2;
       const y = (target.position.y as number) + (nodeHeight as number) / 2;
-      isProgrammaticMove.current = true;
+      beginProgrammaticMove();
       userPanned.current = false;
       setCenter(x, y, { duration: 300, zoom: 1 });
-      setTimeout(() => { isProgrammaticMove.current = false; }, 400);
+      endProgrammaticMoveAfter(400);
     }
     clearCenterOnNode();
-  }, [centerOnNodeId, nodes, setCenter, clearCenterOnNode]);
+  }, [centerOnNodeId, nodes, setCenter, clearCenterOnNode, beginProgrammaticMove, endProgrammaticMoveAfter]);
 
   // Clear isNew flags after animation
   useEffect(() => {
@@ -223,10 +241,10 @@ export default function MindMap() {
     const flowX = viewBox.x + ratioX * viewBox.width;
     const flowY = viewBox.y + ratioY * viewBox.height;
     const currentZoom = getZoom();
-    isProgrammaticMove.current = true;
+    beginProgrammaticMove();
     setCenter(flowX, flowY, { duration: 300, zoom: currentZoom });
-    setTimeout(() => { isProgrammaticMove.current = false; }, 400);
-  }, [setCenter, getZoom]);
+    endProgrammaticMoveAfter(400);
+  }, [setCenter, getZoom, beginProgrammaticMove, endProgrammaticMoveAfter]);
 
   // Constrain panning to the area around nodes (prevents drifting into void)
   const translateExtent = useMemo((): [[number, number], [number, number]] => {
