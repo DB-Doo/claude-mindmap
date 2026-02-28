@@ -110,7 +110,7 @@ function ActivityBanner({
         }}>
           {activityLabel}
         </span>
-        {!isIdle && (
+        {!isIdle && activity !== 'waiting_on_user' && (
           <span style={{ display: 'flex', gap: 2 }}>
             {[0, 1, 2].map((i) => (
               <span key={i} style={{
