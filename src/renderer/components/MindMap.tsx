@@ -263,23 +263,35 @@ export default function MindMap() {
     selectNode(null);
   }, [selectNode, expandNode]);
 
-  // Keyboard navigation for expanded nodes: Escape collapses, Arrow keys navigate
+  // Keyboard navigation: arrow keys navigate nodes, Escape collapses
+  const navigateNode = useSessionStore(s => s.navigateNode);
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (!useSessionStore.getState().expandedNodeId) return;
+      // Don't intercept when typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
       if (e.key === 'Escape') {
-        expandNode(null);
-      } else if (e.key === 'ArrowUp') {
+        if (useSessionStore.getState().expandedNodeId) expandNode(null);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
         e.preventDefault();
-        navigateExpandedNode('prev');
+        navigateNode('up');
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
-        navigateExpandedNode('next');
+        navigateNode('down');
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        navigateNode('left');
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        navigateNode('right');
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [expandNode, navigateExpandedNode]);
+  }, [expandNode, navigateNode]);
 
   // Click-to-teleport on minimap: use MiniMap's built-in onClick which
   // provides the click position already converted to flow coordinates.

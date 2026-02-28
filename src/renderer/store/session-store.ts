@@ -96,6 +96,7 @@ interface SessionState {
   loadFullSession: () => void;
   navigateUserMessage: (direction: 'prev' | 'next') => void;
   navigateExpandedNode: (direction: 'prev' | 'next') => void;
+  navigateNode: (direction: 'up' | 'down' | 'left' | 'right') => void;
   navigateToFirstUserMessage: () => void;
   navigateToLastUserMessage: () => void;
   clearCenterOnNode: () => void;
@@ -1021,6 +1022,77 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         centerOnNodeId: target.id,
         centerOnNodeBottom: true,
       });
+    }
+  },
+
+  navigateNode: (direction) => {
+    const state = get();
+    const nodes = state.nodes;
+    if (nodes.length === 0) return;
+
+    const isExpanded = !!state.expandedNodeId;
+    const currentId = state.expandedNodeId || state.selectedNodeId;
+
+    // If nothing selected, select the first node
+    if (!currentId) {
+      const first = nodes[0];
+      set({ selectedNodeId: first.id, centerOnNodeId: first.id });
+      return;
+    }
+
+    const currentIdx = nodes.findIndex((n) => n.id === currentId);
+    if (currentIdx === -1) return;
+
+    // Build column boundaries for current node
+    let colStart = currentIdx;
+    while (colStart > 0 && nodes[colStart].kind !== 'user') colStart--;
+    let colEnd = colStart + 1;
+    while (colEnd < nodes.length && nodes[colEnd].kind !== 'user') colEnd++;
+
+    if (direction === 'up' || direction === 'down') {
+      // Navigate within column
+      const column = nodes.slice(colStart, colEnd);
+      const idxInCol = currentIdx - colStart;
+      const nextIdxInCol = direction === 'down'
+        ? Math.min(idxInCol + 1, column.length - 1)
+        : Math.max(idxInCol - 1, 0);
+      const target = column[nextIdxInCol];
+      if (!target || target.id === currentId) return;
+      if (isExpanded) {
+        set({ expandedNodeId: target.id, selectedNodeId: target.id, centerOnNodeId: target.id, centerOnNodeBottom: true });
+      } else {
+        set({ selectedNodeId: target.id, centerOnNodeId: target.id });
+      }
+    } else {
+      // Left/right: jump to the same relative position in the adjacent column
+      const userNodes: number[] = [];
+      for (let i = 0; i < nodes.length; i++) {
+        if (nodes[i].kind === 'user') userNodes.push(i);
+      }
+      const currentColIdx = userNodes.indexOf(colStart);
+      if (currentColIdx === -1) return;
+
+      const nextColIdx = direction === 'right'
+        ? Math.min(currentColIdx + 1, userNodes.length - 1)
+        : Math.max(currentColIdx - 1, 0);
+      if (nextColIdx === currentColIdx) return;
+
+      // Build the target column
+      const nextColStart = userNodes[nextColIdx];
+      let nextColEnd = nextColStart + 1;
+      while (nextColEnd < nodes.length && nodes[nextColEnd].kind !== 'user') nextColEnd++;
+      const nextColumn = nodes.slice(nextColStart, nextColEnd);
+
+      // Try to land at the same relative position, or the last node in column
+      const idxInCol = currentIdx - colStart;
+      const targetIdxInCol = Math.min(idxInCol, nextColumn.length - 1);
+      const target = nextColumn[targetIdxInCol];
+      if (!target) return;
+      if (isExpanded) {
+        set({ expandedNodeId: target.id, selectedNodeId: target.id, centerOnNodeId: target.id, centerOnNodeBottom: true });
+      } else {
+        set({ selectedNodeId: target.id, centerOnNodeId: target.id });
+      }
     }
   },
 
