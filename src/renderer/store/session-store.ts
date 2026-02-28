@@ -372,6 +372,8 @@ export function detectActivity(messages: JSONLMessage[], isKnownActive = false):
 
 const MAX_USER_TURNS_ACTIVE = 10;
 const MAX_USER_TURNS_PAST = 20;
+/** How many recent user turns to keep expanded in active sessions. */
+const ACTIVE_EXPAND_TURNS = 5;
 
 /**
  * Trim messages to only include the last `maxTurns` user messages
@@ -483,11 +485,24 @@ function updateThinkingTracking(
 // filterOnly: reuses cached buildGraph output. Use for filter/search/collapse.
 // ---------------------------------------------------------------------------
 
-/** Collect IDs of all user nodes — used to auto-collapse past sessions. */
-function getUserNodeIds(nodes: GraphNode[]): Set<string> {
-  const ids = new Set<string>();
+/**
+ * Build the auto-collapse set for a session.
+ * - Past sessions: collapse ALL user nodes (show only the user row).
+ * - Active sessions: collapse older user nodes, keeping the last N expanded.
+ *   keepExpanded=0 means collapse all (used for past sessions).
+ */
+function autoCollapseUserNodes(nodes: GraphNode[], keepExpanded: number): Set<string> {
+  const userNodes: string[] = [];
   for (const n of nodes) {
-    if (n.kind === 'user') ids.add(n.id);
+    if (n.kind === 'user') userNodes.push(n.id);
+  }
+  const ids = new Set<string>();
+  // Collapse all except the last `keepExpanded` user nodes
+  const collapseCount = keepExpanded > 0
+    ? Math.max(0, userNodes.length - keepExpanded)
+    : userNodes.length;
+  for (let i = 0; i < collapseCount; i++) {
+    ids.add(userNodes[i]);
   }
   return ids;
 }
@@ -502,8 +517,10 @@ function fullRebuild(state: SessionState, messages: JSONLMessage[], maxTurnsOver
   const isWindowed = windowed.length < messages.length;
   const { nodes: allNodes, edges: allEdges } = buildGraph(windowed, endReason);
 
-  // Auto-collapse user nodes for past sessions to reduce node count
-  const autoCollapsed = !isActive ? getUserNodeIds(allNodes) : state.collapsedNodes;
+  // Auto-collapse: past sessions collapse all, active sessions keep last N expanded
+  const autoCollapsed = isActive
+    ? autoCollapseUserNodes(allNodes, ACTIVE_EXPAND_TURNS)
+    : autoCollapseUserNodes(allNodes, 0);
 
   const { nodes, edges } = applyFilters(
     allNodes, allEdges,
@@ -749,6 +766,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       _cachedAllEdges: result.allEdges,
       nodes: nodesWithFlags,
       edges: result.edges,
+      collapsedNodes: result.autoCollapsed,
       newNodeIds: newIds,
       liveActivity: activity,
       liveActivityDetail: detail,
