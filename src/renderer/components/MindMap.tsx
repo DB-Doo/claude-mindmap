@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -223,7 +223,15 @@ export default function MindMap() {
 
   const onNodeClick = useCallback((_: any, node: Node) => {
     selectNode(node.id);
-  }, [selectNode]);
+    // Center and zoom to the clicked node so user can read it
+    const nodeWidth = node.measured?.width ?? node.width ?? 340;
+    const nodeHeight = node.measured?.height ?? node.height ?? 100;
+    const x = (node.position.x as number) + (nodeWidth as number) / 2;
+    const y = (node.position.y as number) + (nodeHeight as number) / 2;
+    beginProgrammaticMove();
+    setCenter(x, y, { duration: 300, zoom: 1.2 });
+    endProgrammaticMoveAfter(400);
+  }, [selectNode, setCenter, beginProgrammaticMove, endProgrammaticMoveAfter]);
 
   const onPaneClick = useCallback(() => {
     selectNode(null);
@@ -239,10 +247,8 @@ export default function MindMap() {
     const viewBox = svg.viewBox.baseVal;
     if (!viewBox || viewBox.width === 0 || viewBox.height === 0) return;
     const rect = svg.getBoundingClientRect();
-    // Mouse position relative to SVG element (0..1)
     const ratioX = (e.clientX - rect.left) / rect.width;
     const ratioY = (e.clientY - rect.top) / rect.height;
-    // Map to flow coordinates via viewBox
     const flowX = viewBox.x + ratioX * viewBox.width;
     const flowY = viewBox.y + ratioY * viewBox.height;
     const currentZoom = getZoom();
@@ -250,6 +256,38 @@ export default function MindMap() {
     setCenter(flowX, flowY, { duration: 300, zoom: currentZoom });
     endProgrammaticMoveAfter(400);
   }, [setCenter, getZoom, beginProgrammaticMove, endProgrammaticMoveAfter]);
+
+  // Resizable minimap
+  const [minimapSize, setMinimapSize] = useState({ w: 200, h: 150 });
+  const resizing = useRef(false);
+  const resizeStart = useRef({ x: 0, y: 0, w: 0, h: 0 });
+
+  const onResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    resizing.current = true;
+    resizeStart.current = { x: e.clientX, y: e.clientY, w: minimapSize.w, h: minimapSize.h };
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!resizing.current) return;
+      // Dragging top-left corner: moving left = bigger width, moving up = bigger height
+      const dw = resizeStart.current.x - ev.clientX;
+      const dh = resizeStart.current.y - ev.clientY;
+      setMinimapSize({
+        w: Math.max(120, Math.min(600, resizeStart.current.w + dw)),
+        h: Math.max(80, Math.min(500, resizeStart.current.h + dh)),
+      });
+    };
+
+    const onMouseUp = () => {
+      resizing.current = false;
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }, [minimapSize]);
 
   // Constrain panning to the area around nodes (prevents drifting into void)
   const translateExtent = useMemo((): [[number, number], [number, number]] => {
@@ -288,7 +326,32 @@ export default function MindMap() {
     >
       <Background color="#1a1a2e" gap={20} size={1} />
       <Controls />
-      <div ref={minimapRef} onClick={onMinimapClick}>
+      <div
+        ref={minimapRef}
+        onClick={onMinimapClick}
+        style={{ position: 'absolute', bottom: 10, right: 10 }}
+      >
+        {/* Resize handle — top-left corner, large grab area */}
+        <div
+          onMouseDown={onResizeMouseDown}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: 28,
+            height: 28,
+            cursor: 'nw-resize',
+            zIndex: 5,
+            borderRadius: '6px 0 0 0',
+          }}
+        >
+          {/* Diagonal grip lines */}
+          <svg width="16" height="16" viewBox="0 0 16 16" style={{ position: 'absolute', top: 3, left: 3, opacity: 0.5 }}>
+            <line x1="0" y1="12" x2="12" y2="0" stroke="#64748b" strokeWidth="1.5" />
+            <line x1="0" y1="8" x2="8" y2="0" stroke="#64748b" strokeWidth="1.5" />
+            <line x1="0" y1="4" x2="4" y2="0" stroke="#64748b" strokeWidth="1.5" />
+          </svg>
+        </div>
         <MiniMap
           nodeColor={(n) => {
             const gn = n.data as any;
@@ -300,7 +363,12 @@ export default function MindMap() {
             if (gn?.kind === 'session_end') return '#475569';
             return '#475569';
           }}
-          style={{ backgroundColor: '#0d0d14' }}
+          style={{
+            backgroundColor: '#0d0d14',
+            width: minimapSize.w,
+            height: minimapSize.h,
+            position: 'relative',
+          }}
           maskColor="rgba(10, 10, 15, 0.7)"
           pannable
         />

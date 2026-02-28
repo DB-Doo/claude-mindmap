@@ -6,10 +6,9 @@ const ACTIVITY_CONFIG: Record<LiveActivity, { label: string; icon: string; color
   tool_running: { label: 'Running tool', icon: '⚡', color: '#ff6b35' },
   responding: { label: 'Responding', icon: '💬', color: '#00d4ff' },
   waiting_on_user: { label: 'Waiting on you', icon: '⏳', color: '#34d399' },
-  compacting: { label: 'Compacting conversation', icon: '📋', color: '#fbbf24' },
+  compacting: { label: 'Compacting', icon: '📋', color: '#fbbf24' },
 };
 
-/** Build the display label, incorporating tool details when available. */
 function buildLabel(activity: LiveActivity, detail?: string): string {
   if (activity === 'tool_running' && detail) {
     return `Running ${detail}`;
@@ -22,84 +21,101 @@ function ActivityBanner({
   activity,
   detail,
   sessionName,
-  lastReply,
-  isBackground,
+  isCurrent,
   onClick,
 }: {
   config: { label: string; icon: string; color: string };
   activity: LiveActivity;
   detail?: string;
   sessionName?: string;
-  lastReply?: string;
-  isBackground?: boolean;
+  isCurrent?: boolean;
   onClick?: () => void;
 }) {
   const isIdle = activity === 'idle';
   const activityLabel = buildLabel(activity, detail);
 
-  // Current session: just show the activity. Background: prefix with session name.
-  const label = isBackground
-    ? `${sessionName} \u2014 ${activityLabel}`
-    : activityLabel;
+  const borderColor = isCurrent ? config.color : `${config.color}50`;
 
   return (
     <div
       onClick={onClick}
       style={{
         display: 'flex',
-        flexDirection: isBackground && lastReply ? 'column' : 'row',
-        alignItems: isBackground && lastReply ? 'flex-start' : 'center',
-        gap: isBackground && lastReply ? 4 : (isBackground ? 8 : 10),
-        padding: isBackground ? '5px 14px' : '8px 20px',
-        background: isBackground ? 'rgba(10, 10, 15, 0.75)' : 'rgba(10, 10, 15, 0.9)',
-        border: `1px solid ${config.color}`,
-        borderRadius: isBackground && lastReply ? 12 : 20,
-        boxShadow: isIdle ? 'none' : `0 0 15px ${config.color}40, 0 0 30px ${config.color}20`,
+        alignItems: 'stretch',
+        background: 'rgba(10, 10, 15, 0.85)',
+        border: `1px solid ${borderColor}`,
+        borderRadius: 8,
+        boxShadow: isCurrent
+          ? `0 0 12px ${config.color}40, 0 0 24px ${config.color}20`
+          : (isIdle ? 'none' : `0 0 8px ${config.color}20`),
         backdropFilter: 'blur(8px)',
-        animation: isIdle ? undefined : 'indicator-pulse 2s ease-in-out infinite',
-        opacity: isBackground ? 0.7 : 1,
         cursor: 'pointer',
         transition: 'opacity 0.2s, transform 0.2s',
+        opacity: isCurrent ? 1 : 0.7,
+        overflow: 'hidden',
+        maxWidth: 420,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: isBackground ? 8 : 10 }}>
-        {isBackground && (
+      {/* Left: "VIEWING" tag for current session, or session prompt */}
+      <div style={{
+        padding: '6px 10px',
+        fontSize: 10,
+        fontFamily: 'var(--font-mono, monospace)',
+        color: isCurrent ? '#e2e8f0' : '#94a3b8',
+        maxWidth: 240,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        borderRight: `1px solid ${borderColor}40`,
+      }}>
+        {isCurrent && (
           <span style={{
             fontSize: 8,
-            color: '#64748b',
-            fontFamily: 'var(--font-mono, monospace)',
-            fontWeight: 500,
-            letterSpacing: '0.5px',
+            fontWeight: 700,
+            letterSpacing: '1px',
+            color: config.color,
             textTransform: 'uppercase',
+            flexShrink: 0,
           }}>
-            {'\u2197'}
+            {'\u25C9'}
           </span>
         )}
+        {sessionName || 'Session'}
+      </div>
+      {/* Right: what Claude is doing */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '6px 10px',
+        background: `${config.color}08`,
+      }}>
         <span style={{
-          fontSize: isBackground ? 14 : 18,
+          fontSize: 13,
           animation: activity === 'thinking' ? 'indicator-bounce 1s ease-in-out infinite' : undefined,
+          lineHeight: 1,
         }}>
           {config.icon}
         </span>
         <span style={{
-          fontSize: isBackground ? 10 : 12,
+          fontSize: 10,
           fontFamily: 'var(--font-mono, monospace)',
           color: config.color,
           fontWeight: 600,
           letterSpacing: '0.5px',
-          maxWidth: isBackground ? 340 : undefined,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
         }}>
-          {label}
+          {activityLabel}
         </span>
         {!isIdle && (
-          <span style={{ display: 'flex', gap: 3 }}>
+          <span style={{ display: 'flex', gap: 2 }}>
             {[0, 1, 2].map((i) => (
               <span key={i} style={{
-                width: isBackground ? 3 : 4,
-                height: isBackground ? 3 : 4,
+                width: 3,
+                height: 3,
                 borderRadius: '50%',
                 backgroundColor: config.color,
                 animation: `indicator-dot 1.4s ease-in-out ${i * 0.2}s infinite`,
@@ -108,20 +124,6 @@ function ActivityBanner({
           </span>
         )}
       </div>
-      {isBackground && lastReply && (
-        <div style={{
-          fontSize: 9,
-          fontFamily: 'var(--font-mono, monospace)',
-          color: '#64748b',
-          maxWidth: 340,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          paddingLeft: 22,
-        }}>
-          {'\u2192'} {lastReply}
-        </div>
-      )}
     </div>
   );
 }
@@ -135,9 +137,7 @@ export default function ThinkingIndicator() {
   const requestCenter = useSessionStore((s) => s.requestCenter);
 
   const entries = Array.from(backgroundActivities.entries())
-    .map(([filePath, { activity, detail, sessionName, lastReply }]) => {
-      // For the current session, use real-time liveActivity (updated on every
-      // message append) instead of the polled value (3s interval, 5-msg tail).
+    .map(([filePath, { activity, detail, sessionName }]) => {
       const isCurrent = filePath === activeSessionPath;
       const resolvedActivity = isCurrent ? liveActivity : activity;
       const resolvedDetail = isCurrent ? liveActivityDetail : detail;
@@ -146,7 +146,6 @@ export default function ThinkingIndicator() {
         activity: resolvedActivity,
         detail: resolvedDetail,
         sessionName,
-        lastReply,
         config: ACTIVITY_CONFIG[resolvedActivity],
         isCurrent,
       };
@@ -165,9 +164,12 @@ export default function ThinkingIndicator() {
       transform: 'translateX(-50%)',
       zIndex: 10,
       display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: 6,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      maxWidth: '90%',
     }}>
       {entries.map((entry) => (
         <ActivityBanner
@@ -176,8 +178,7 @@ export default function ThinkingIndicator() {
           activity={entry.activity}
           detail={entry.detail}
           sessionName={entry.sessionName}
-          lastReply={entry.lastReply}
-          isBackground={!entry.isCurrent}
+          isCurrent={entry.isCurrent}
           onClick={entry.isCurrent
             ? () => requestCenter()
             : () => { useSessionStore.setState({ centerOnLoad: true }); setActiveSession(entry.filePath); }}

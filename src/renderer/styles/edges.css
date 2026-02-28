@@ -192,6 +192,11 @@
   border-radius: var(--radius-md);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   overflow: hidden;
+  /* Override ReactFlow default absolute positioning — we position the wrapper */
+  position: relative !important;
+  bottom: auto !important;
+  right: auto !important;
+  margin: 0 !important;
 }
 
 .react-flow__minimap-mask {

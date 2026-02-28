@@ -293,6 +293,15 @@ export function detectActivity(messages: JSONLMessage[], isKnownActive = false):
     }
   }
 
+  // Check staleness of the last message — used as a fallback below
+  let lastMessageAge = 0;
+  if (messages.length > 0) {
+    const last = messages[messages.length - 1];
+    if (last.timestamp) {
+      lastMessageAge = Date.now() - new Date(last.timestamp).getTime();
+    }
+  }
+
   let sawSystem = false;
 
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -325,6 +334,15 @@ export function detectActivity(messages: JSONLMessage[], isKnownActive = false):
       // Check stop_reason — if the API response is complete, Claude is done
       const stopReason = (msg as any).message?.stop_reason;
       if (stopReason === 'end_turn') return { activity: 'waiting_on_user' };
+
+      // Staleness fallback: if the last message is >15s old and we'd say
+      // 'responding' or 'thinking', Claude almost certainly finished and we
+      // missed the final signal (streaming chunk timing, watcher delay, etc.)
+      if (lastMessageAge > 15_000) {
+        if (last.type === 'thinking' || last.type === 'text') {
+          return { activity: 'waiting_on_user' };
+        }
+      }
 
       if (last.type === 'thinking') return { activity: 'thinking' };
       if (last.type === 'tool_use') return { activity: 'tool_running', detail: last.name };
