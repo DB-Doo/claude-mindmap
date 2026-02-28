@@ -27,4 +27,22 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.removeListener('new-messages', handler);
     };
   },
+
+  /** Start watching a secondary session (split view) */
+  watchSecondarySession: (filePath: string): Promise<JSONLMessage[]> =>
+    ipcRenderer.invoke('watch-secondary-session', filePath),
+
+  /** Stop the secondary file watcher */
+  stopSecondaryWatching: (): Promise<void> =>
+    ipcRenderer.invoke('stop-secondary-watching'),
+
+  /** Register a callback for secondary session incremental messages */
+  onSecondaryNewMessages: (callback: (messages: JSONLMessage[]) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, messages: JSONLMessage[]) =>
+      callback(messages);
+    ipcRenderer.on('secondary-new-messages', handler);
+    return () => {
+      ipcRenderer.removeListener('secondary-new-messages', handler);
+    };
+  },
 });

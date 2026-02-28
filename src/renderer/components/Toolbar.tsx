@@ -1,5 +1,7 @@
 import { useCallback, useState, useRef, useEffect, type CSSProperties, type ChangeEvent } from 'react';
 import { useSessionStore } from '../store/session-store';
+import { format, isToday, isYesterday, isThisWeek, isThisMonth } from 'date-fns';
+import type { SessionInfo } from '../../shared/types';
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
@@ -16,6 +18,7 @@ const toolbarStyle: CSSProperties = {
   backgroundColor: '#12121a',
   borderBottom: '1px solid #2a2a3e',
   flexShrink: 0,
+  position: 'relative',
 };
 
 const btn: CSSProperties = {
@@ -77,7 +80,171 @@ const costStyle: CSSProperties = {
   fontSize: 11,
 };
 
+// ─── Date bucketing (reused from SessionPicker) ─────────────────────
 
+type DateBucket = 'active' | 'today' | 'yesterday' | 'thisWeek' | 'thisMonth' | 'older';
+
+function getDateBucket(session: SessionInfo): DateBucket {
+  if (session.endReason === 'active') return 'active';
+  const d = new Date(session.timestamp);
+  if (isToday(d)) return 'today';
+  if (isYesterday(d)) return 'yesterday';
+  if (isThisWeek(d)) return 'thisWeek';
+  if (isThisMonth(d)) return 'thisMonth';
+  return 'older';
+}
+
+const BUCKET_LABELS: Record<DateBucket, string> = {
+  active: 'Active',
+  today: 'Today',
+  yesterday: 'Yesterday',
+  thisWeek: 'This Week',
+  thisMonth: 'This Month',
+  older: 'Older',
+};
+
+const BUCKET_ORDER: DateBucket[] = ['active', 'today', 'yesterday', 'thisWeek', 'thisMonth', 'older'];
+
+// ─── Sessions Dropdown ──────────────────────────────────────────────
+
+function SessionsDropdown({ onClose }: { onClose: () => void }) {
+  const sessions = useSessionStore((s) => s.sessions);
+  const activeSessionPath = useSessionStore((s) => s.activeSessionPath);
+  const setActiveSession = useSessionStore((s) => s.setActiveSession);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    // Delay to prevent immediate close from the button click
+    const timer = setTimeout(() => document.addEventListener('mousedown', handler), 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handler);
+    };
+  }, [onClose]);
+
+  // Group sessions by bucket
+  const buckets = new Map<DateBucket, SessionInfo[]>();
+  for (const s of sessions) {
+    const bucket = getDateBucket(s);
+    const list = buckets.get(bucket) || [];
+    list.push(s);
+    buckets.set(bucket, list);
+  }
+  // Sort within each bucket: newest first
+  for (const list of buckets.values()) {
+    list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }
+
+  return (
+    <div
+      ref={dropdownRef}
+      style={{
+        position: 'absolute',
+        top: 40,
+        left: 12,
+        width: 340,
+        maxHeight: 420,
+        overflowY: 'auto',
+        backgroundColor: '#12121a',
+        border: '1px solid #2a2a3e',
+        borderRadius: '0 0 8px 8px',
+        zIndex: 200,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+      }}
+    >
+      {BUCKET_ORDER.map((bucket) => {
+        const items = buckets.get(bucket);
+        if (!items || items.length === 0) return null;
+        return (
+          <div key={bucket}>
+            <div style={{
+              padding: '8px 12px 4px',
+              fontSize: 9,
+              fontWeight: 700,
+              color: bucket === 'active' ? '#34d399' : '#64748b',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}>
+              {bucket === 'active' && (
+                <span style={{
+                  width: 5,
+                  height: 5,
+                  borderRadius: '50%',
+                  backgroundColor: '#34d399',
+                  boxShadow: '0 0 4px #34d39980',
+                }} />
+              )}
+              {BUCKET_LABELS[bucket]}
+              <span style={{ fontSize: 9, color: '#475569', marginLeft: 'auto' }}>{items.length}</span>
+            </div>
+            {items.map((session) => {
+              const isViewing = session.filePath === activeSessionPath;
+              const lastPrompt = session.userPrompts?.length
+                ? session.userPrompts[session.userPrompts.length - 1]
+                : session.subtitle || session.displayText;
+              return (
+                <div
+                  key={session.sessionId}
+                  onClick={() => {
+                    setActiveSession(session.filePath);
+                    onClose();
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    cursor: 'pointer',
+                    borderLeft: isViewing ? '3px solid #a855f7' : '3px solid transparent',
+                    background: isViewing ? '#1a1a2e' : 'transparent',
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={(e) => { if (!isViewing) e.currentTarget.style.background = '#161622'; }}
+                  onMouseLeave={(e) => { if (!isViewing) e.currentTarget.style.background = isViewing ? '#1a1a2e' : 'transparent'; }}
+                >
+                  <div style={{
+                    fontSize: 11,
+                    color: isViewing ? '#e0e0e0' : '#94a3b8',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {session.displayText}
+                  </div>
+                  <div style={{
+                    fontSize: 10,
+                    color: '#64748b',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    marginTop: 1,
+                  }}>
+                    {lastPrompt}
+                  </div>
+                  <div style={{ fontSize: 9, color: '#475569', marginTop: 1 }}>
+                    {format(new Date(session.timestamp), 'MMM d, HH:mm')}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+      {sessions.length === 0 && (
+        <div style={{ padding: 16, fontSize: 11, color: '#475569', textAlign: 'center' }}>
+          No sessions found
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Toolbar ───────────────────────────────────────────────────
 
 export default function Toolbar() {
   const showThinking = useSessionStore(s => s.showThinking);
@@ -98,6 +265,10 @@ export default function Toolbar() {
   const loadFullSession = useSessionStore(s => s.loadFullSession);
   const navigateUserMessage = useSessionStore(s => s.navigateUserMessage);
   const navigateToLastUserMessage = useSessionStore(s => s.navigateToLastUserMessage);
+  const splitMode = useSessionStore(s => s.splitMode);
+  const toggleSplitMode = useSessionStore(s => s.toggleSplitMode);
+
+  const [sessionsOpen, setSessionsOpen] = useState(false);
 
   // Debounced search: local state updates instantly, store updates after 200ms
   const [localSearch, setLocalSearch] = useState(searchQuery);
@@ -116,8 +287,26 @@ export default function Toolbar() {
     [setSearchQuery],
   );
 
+  const toggleSessionsDropdown = useCallback(() => {
+    setSessionsOpen((prev) => !prev);
+  }, []);
+
+  const closeSessionsDropdown = useCallback(() => {
+    setSessionsOpen(false);
+  }, []);
+
   return (
     <div style={toolbarStyle}>
+      {/* Sessions dropdown */}
+      <button
+        style={sessionsOpen ? activeBtn : btn}
+        onClick={toggleSessionsDropdown}
+        title="Browse sessions"
+      >
+        Sessions {'\u25BE'}
+      </button>
+      {sessionsOpen && <SessionsDropdown onClose={closeSessionsDropdown} />}
+      <div style={dividerStyle} />
       <div style={groupStyle}>
         <button style={showThinking ? activeBtn : btn} onClick={toggleShowThinking}>
           Thinking
@@ -162,6 +351,15 @@ export default function Toolbar() {
         onFocus={(e) => { e.currentTarget.style.borderColor = '#a855f7'; }}
         onBlur={(e) => { e.currentTarget.style.borderColor = '#2a2a3e'; }}
       />
+      <div style={dividerStyle} />
+      {/* Split view toggle */}
+      <button
+        style={splitMode ? activeBtn : btn}
+        onClick={toggleSplitMode}
+        title={splitMode ? 'Close split view' : 'Open split view'}
+      >
+        {'\u29C9'} Split
+      </button>
       <div style={statsStyle}>
         <span>{nodeCount} nodes</span>
         {isWindowed && (

@@ -98,6 +98,13 @@ interface SessionState {
   navigateToFirstUserMessage: () => void;
   navigateToLastUserMessage: () => void;
   clearCenterOnNode: () => void;
+
+  // Split view
+  splitMode: boolean;
+  secondarySessionPath: string | null;
+  toggleSplitMode: () => void;
+  setSecondarySession: (path: string | null) => void;
+  swapPanes: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -683,6 +690,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   turnThinkingMs: 0,
   _thinkingStartedAt: null,
 
+  // Split view
+  splitMode: false,
+  secondarySessionPath: null,
+
   // ── Actions ──────────────────────────────────────────────────────────
 
   setSessions: (sessions) => set({ sessions }),
@@ -1026,4 +1037,36 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   clearCenterOnNode: () => set({ centerOnNodeId: null }),
+
+  // ── Split View ──────────────────────────────────────────────────────
+  toggleSplitMode: () => {
+    const state = get();
+    if (state.splitMode) {
+      set({ splitMode: false, secondarySessionPath: null });
+    } else {
+      // Auto-populate secondary with the most recently active session that isn't primary
+      const other = state.sessions.find(
+        (s) => s.endReason === 'active' && s.filePath !== state.activeSessionPath,
+      );
+      set({
+        splitMode: true,
+        secondarySessionPath: other?.filePath ?? null,
+      });
+    }
+  },
+
+  setSecondarySession: (path) => {
+    if (path === get().activeSessionPath) return; // already primary
+    set({ secondarySessionPath: path });
+  },
+
+  swapPanes: () => {
+    const state = get();
+    if (!state.secondarySessionPath) return;
+    const oldPrimary = state.activeSessionPath;
+    const oldSecondary = state.secondarySessionPath;
+    // setActiveSession handles full primary pipeline (cache, watcher, rebuild)
+    state.setActiveSession(oldSecondary);
+    set({ secondarySessionPath: oldPrimary });
+  },
 }));

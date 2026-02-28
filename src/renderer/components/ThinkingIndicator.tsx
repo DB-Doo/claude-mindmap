@@ -143,6 +143,8 @@ export default function ThinkingIndicator() {
   const liveActivityDetail = useSessionStore((s) => s.liveActivityDetail);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const requestCenter = useSessionStore((s) => s.requestCenter);
+  const splitMode = useSessionStore((s) => s.splitMode);
+  const setSecondarySession = useSessionStore((s) => s.setSecondarySession);
 
   const entries = Array.from(backgroundActivities.entries())
     .map(([filePath, { activity, detail, sessionName }]) => {
@@ -189,7 +191,9 @@ export default function ThinkingIndicator() {
           isCurrent={entry.isCurrent}
           onClick={entry.isCurrent
             ? () => { useSessionStore.setState({ autoFollow: true }); requestCenter(); }
-            : () => { useSessionStore.setState({ centerOnLoad: true }); setActiveSession(entry.filePath); }}
+            : splitMode
+              ? () => { setSecondarySession(entry.filePath); }
+              : () => { useSessionStore.setState({ centerOnLoad: true }); setActiveSession(entry.filePath); }}
         />
       ))}
     </div>

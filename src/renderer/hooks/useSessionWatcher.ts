@@ -10,6 +10,9 @@ declare global {
       stopWatching: () => Promise<void>;
       onNewMessages: (cb: (messages: any[]) => void) => () => void;
       peekSessionActivity: (filePaths: string[]) => Promise<{ filePath: string; tailMessages: any[]; lastUserPrompt: string | null; fileMtime: number }[]>;
+      watchSecondarySession: (filePath: string) => Promise<any[]>;
+      stopSecondaryWatching: () => Promise<void>;
+      onSecondaryNewMessages: (cb: (messages: any[]) => void) => () => void;
     };
   }
 }

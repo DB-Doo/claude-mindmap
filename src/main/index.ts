@@ -10,6 +10,7 @@ process.stderr?.on?.('error', () => {});
 
 let mainWindow: BrowserWindow | null = null;
 let currentWatcher: SessionWatcher | null = null;
+let secondaryWatcher: SessionWatcher | null = null;
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -73,6 +74,41 @@ ipcMain.handle('stop-watching', async () => {
   if (currentWatcher) {
     currentWatcher.stop();
     currentWatcher = null;
+  }
+});
+
+// Secondary watcher for split view
+ipcMain.handle('watch-secondary-session', async (_event, filePath: string) => {
+  if (secondaryWatcher) {
+    secondaryWatcher.stop();
+    secondaryWatcher = null;
+  }
+  if (!filePath) return [];
+
+  try {
+    const watcher = new SessionWatcher(filePath);
+    secondaryWatcher = watcher;
+
+    watcher.on('new-messages', (messages) => {
+      if (secondaryWatcher !== watcher) return;
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('secondary-new-messages', messages);
+      }
+    });
+
+    watcher.on('error', () => {});
+
+    const initialMessages = watcher.start();
+    return initialMessages;
+  } catch {
+    return [];
+  }
+});
+
+ipcMain.handle('stop-secondary-watching', async () => {
+  if (secondaryWatcher) {
+    secondaryWatcher.stop();
+    secondaryWatcher = null;
   }
 });
 
@@ -154,10 +190,14 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  // Clean up the file watcher before quitting.
+  // Clean up the file watchers before quitting.
   if (currentWatcher) {
     currentWatcher.stop();
     currentWatcher = null;
+  }
+  if (secondaryWatcher) {
+    secondaryWatcher.stop();
+    secondaryWatcher = null;
   }
 
   if (process.platform !== 'darwin') {
