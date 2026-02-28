@@ -117,6 +117,10 @@ export interface GraphNode {
   isFirstResponse?: boolean;
   /** True on the last text/question node in an active session (waiting for user). */
   isLastMessage?: boolean;
+  /** True when this user node originated from a queued (dequeued) message. */
+  wasQueued?: boolean;
+  /** True when this queue node was cancelled (removed, not sent to Claude). */
+  queueCancelled?: boolean;
   /** Pre-computed lowercase search text (label + detail + toolName). */
   _searchText?: string;
 }

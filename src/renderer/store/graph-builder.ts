@@ -190,6 +190,26 @@ export function buildGraph(
     return undefined;
   }
 
+  // ---- Pre-scan: identify dequeued content (queued messages that were actually sent) ----
+  const dequeuedContents = new Set<string>();
+  {
+    const queuePending: string[] = [];
+    for (const msg of messages) {
+      if ((msg as any).type !== 'queue-operation') continue;
+      const op = (msg as any).operation as string;
+      if (op === 'enqueue' && (msg as any).content) {
+        queuePending.push((msg as any).content);
+      } else if (op === 'dequeue') {
+        const content = queuePending.shift();
+        if (content) dequeuedContents.add(content);
+      } else if (op === 'remove') {
+        queuePending.shift();
+      } else if (op === 'popAll') {
+        queuePending.length = 0;
+      }
+    }
+  }
+
   // ---- Second pass: build nodes ----
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
@@ -245,6 +265,8 @@ export function buildGraph(
           continue;
         }
 
+        const wasQueued = dequeuedContents.has(content);
+        if (wasQueued) dequeuedContents.delete(content); // consume to avoid double-matching
         addNode(
           {
             id: msg.uuid,
@@ -257,6 +279,7 @@ export function buildGraph(
             timestamp: msg.timestamp,
             isNew: false,
             replyToSnippet: replyToSnippet || undefined,
+            wasQueued,
           },
           msg.uuid,
         );
@@ -553,21 +576,58 @@ export function buildGraph(
   // NOTE: isLastMessage marking moved to fullRebuild (after filtering)
   // so it operates on the final visible node set, not the full unfiltered set.
 
-  // ---- Queued messages: show pending queue-operation entries ----
+  // ---- Queued messages: pending + cancelled ----
   {
     const pending: { content: string; timestamp: string }[] = [];
+    const cancelled: { content: string; timestamp: string }[] = [];
     for (const msg of messages) {
       if ((msg as any).type !== 'queue-operation') continue;
       const op = (msg as any).operation as string;
       if (op === 'enqueue' && (msg as any).content) {
         pending.push({ content: (msg as any).content, timestamp: (msg as any).timestamp || '' });
-      } else if (op === 'remove' || op === 'dequeue') {
-        pending.shift(); // remove oldest
+      } else if (op === 'remove') {
+        const item = pending.shift();
+        if (item) cancelled.push(item);
+      } else if (op === 'dequeue') {
+        pending.shift(); // dequeued items become real user messages (handled above)
       } else if (op === 'popAll') {
+        cancelled.push(...pending);
         pending.length = 0;
       }
     }
 
+    // Cancelled queue nodes: find nearest graph node by timestamp for placement
+    for (let i = 0; i < cancelled.length; i++) {
+      const qId = `__queue_cancelled_${i}__`;
+      const content = cancelled[i].content;
+      // Find the last node with timestamp <= cancelled timestamp for placement
+      let parentId: string | null = null;
+      for (let j = nodes.length - 1; j >= 0; j--) {
+        if (nodes[j].timestamp <= cancelled[i].timestamp) {
+          parentId = nodes[j].id;
+          break;
+        }
+      }
+      if (!parentId && nodes.length > 0) parentId = nodes[nodes.length - 1].id;
+      nodes.push({
+        id: qId,
+        parentId,
+        kind: 'queue',
+        toolName: null,
+        label: content.length > 120 ? content.slice(0, 120) + '\u2026' : content,
+        detail: content,
+        status: null,
+        timestamp: cancelled[i].timestamp,
+        isNew: false,
+        queueCancelled: true,
+        _searchText: ('cancelled queued\n' + content).toLowerCase(),
+      });
+      if (parentId) {
+        edges.push({ id: `${parentId}->${qId}`, source: parentId, target: qId });
+      }
+    }
+
+    // Still-pending queue nodes: attach at the end of the graph
     let prevId = nodes.length > 0 ? nodes[nodes.length - 1].id : null;
     for (let i = 0; i < pending.length; i++) {
       const qId = `__queue_${i}__`;

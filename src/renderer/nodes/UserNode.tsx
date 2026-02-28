@@ -31,6 +31,7 @@ function UserNode({ data, id }: NodeProps) {
       <div className="node-header">
         <span className="node-icon">{'\u25B6'}</span>
         <span>You</span>
+        {gn.wasQueued && <span className="queued-badge">{'\u231B'} Queued</span>}
         {(gn.turnInputTokens || gn.turnOutputTokens) ? (
           <span className="node-tokens">
             {formatTokens((gn.turnInputTokens || 0) + (gn.turnOutputTokens || 0))} tok
