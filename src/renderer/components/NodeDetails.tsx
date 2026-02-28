@@ -11,6 +11,14 @@ const panelStyle: CSSProperties = {
   flexShrink: 0,
 };
 
+const collapsedStyle: CSSProperties = {
+  width: 0,
+  padding: 0,
+  overflow: 'hidden',
+  flexShrink: 0,
+  borderLeft: 'none',
+};
+
 const headerStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -74,7 +82,9 @@ export default function NodeDetails() {
     return s.nodes.find(n => n.id === s.selectedNodeId) ?? null;
   });
 
-  if (!node) return null;
+  // Always render the container to keep a stable flex layout.
+  // Collapsed (width: 0) when no node selected, expanded (360px) when selected.
+  if (!node) return <div style={collapsedStyle} />;
 
   const color = node.toolName
     ? (TOOL_COLORS[node.toolName] || TOOL_COLORS.default)
@@ -87,7 +97,7 @@ export default function NodeDetails() {
           {node.kind === 'tool_use' ? node.toolName : node.kind}
         </span>
         <button onClick={() => selectNode(null)} style={closeBtnStyle}>
-          {'✕'}
+          {'\u2715'}
         </button>
       </div>
       {node.status && (

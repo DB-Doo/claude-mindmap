@@ -275,6 +275,8 @@ export default function MindMap() {
       onPaneClick={onPaneClick}
       onMoveStart={onMoveStart}
       translateExtent={translateExtent}
+      nodesDraggable={false}
+      nodesConnectable={false}
       minZoom={0.1}
       maxZoom={2}
       defaultEdgeOptions={{ animated: false }}
