@@ -3,6 +3,7 @@ import MindMap from './components/MindMap';
 import SessionPicker from './components/SessionPicker';
 import Toolbar from './components/Toolbar';
 import NodeDetails from './components/NodeDetails';
+import ExpandedNodeView from './components/ExpandedNodeView';
 import ThinkingIndicator from './components/ThinkingIndicator';
 import LiveStatusBar from './components/LiveStatusBar';
 import { useSessionWatcher } from './hooks/useSessionWatcher';
@@ -26,6 +27,7 @@ export default function App() {
           </div>
         </div>
         <NodeDetails />
+        <ExpandedNodeView />
       </div>
     </ReactFlowProvider>
   );

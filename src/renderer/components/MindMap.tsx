@@ -221,7 +221,14 @@ export default function MindMap() {
     }
   }, [newNodeIds, clearNewNodes]);
 
+  const expandNode = useSessionStore(s => s.expandNode);
   const onNodeClick = useCallback((_: any, node: Node) => {
+    const currentSelected = useSessionStore.getState().selectedNodeId;
+    if (currentSelected === node.id) {
+      // Already selected — expand to full view
+      expandNode(node.id);
+      return;
+    }
     selectNode(node.id);
     // Center and zoom to the clicked node so user can read it
     const nodeWidth = node.measured?.width ?? node.width ?? 340;
@@ -231,7 +238,7 @@ export default function MindMap() {
     beginProgrammaticMove();
     setCenter(x, y, { duration: 300, zoom: 1.2 });
     endProgrammaticMoveAfter(400);
-  }, [selectNode, setCenter, beginProgrammaticMove, endProgrammaticMoveAfter]);
+  }, [selectNode, expandNode, setCenter, beginProgrammaticMove, endProgrammaticMoveAfter]);
 
   const onPaneClick = useCallback(() => {
     selectNode(null);

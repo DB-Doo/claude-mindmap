@@ -111,6 +111,7 @@ function prettifyDirName(name: string): string {
 interface SessionMeta {
   firstMessage: string | null;
   projectName: string | null;
+  userPrompts: string[];
 }
 
 /**
@@ -120,22 +121,24 @@ interface SessionMeta {
  * 2. The first user message — as a fallback title.
  */
 function extractSessionMeta(filePath: string, sessionId: string, projectPath: string): SessionMeta {
-  const result: SessionMeta = { firstMessage: null, projectName: null };
+  const result: SessionMeta = { firstMessage: null, projectName: null, userPrompts: [] };
 
   try {
+    // Read the entire file to get all user prompts (not just first 512KB)
+    const stat = fs.statSync(filePath);
     const fd = fs.openSync(filePath, 'r');
-    // Read up to 512KB to capture cwd changes that happen after initial setup
-    const buf = Buffer.alloc(524288);
-    const bytesRead = fs.readSync(fd, buf, 0, 524288, 0);
-    fs.closeSync(fd);
-
-    const text = buf.toString('utf8', 0, bytesRead);
-    const lines = text.split('\n');
+    // For cwd detection, read first 512KB; for prompts, read entire file
+    const headSize = Math.min(524288, stat.size);
+    const headBuf = Buffer.alloc(headSize);
+    fs.readSync(fd, headBuf, 0, headSize, 0);
+    const headText = headBuf.toString('utf8', 0, headSize);
+    const headLines = headText.split('\n');
 
     // Track cwd occurrences to find the most-used project directory
     const cwdCounts = new Map<string, number>();
 
-    for (const line of lines) {
+    // Process head for cwd + first user message
+    for (const line of headLines) {
       const trimmed = line.trim();
       if (!trimmed) continue;
       try {
@@ -177,6 +180,90 @@ function extractSessionMeta(filePath: string, sessionId: string, projectPath: st
         // Skip malformed lines
       }
     }
+
+    // Now scan the full file for all user prompts
+    // Read in 1MB chunks to handle large files without loading everything
+    const MAX_PROMPTS = 100;
+    let offset = 0;
+    let leftover = '';
+    const chunkSize = 1048576; // 1MB
+    const readBuf = Buffer.alloc(chunkSize);
+
+    while (offset < stat.size && result.userPrompts.length < MAX_PROMPTS) {
+      const toRead = Math.min(chunkSize, stat.size - offset);
+      fs.readSync(fd, readBuf, 0, toRead, offset);
+      const chunk = leftover + readBuf.toString('utf8', 0, toRead);
+      const chunkLines = chunk.split('\n');
+      // Last line may be partial — save for next chunk
+      leftover = chunkLines.pop() || '';
+      offset += toRead;
+
+      for (const line of chunkLines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        if (result.userPrompts.length >= MAX_PROMPTS) break;
+        try {
+          const msg = JSON.parse(trimmed);
+          if (msg.type !== 'user') continue;
+          const content = msg.message?.content;
+          if (content == null) continue;
+
+          let promptText: string | null = null;
+          if (typeof content === 'string') {
+            const t = content.trimStart();
+            if (t.startsWith('<task-notification>') || t.startsWith('<system-reminder>') ||
+                t.startsWith('<local-command-caveat>') || t.startsWith('[Request interrupted')) continue;
+            promptText = content.trim();
+          } else if (Array.isArray(content)) {
+            if (content.length > 0 && content.every((b: any) => b.type === 'tool_result')) continue;
+            const textParts = content.filter((b: any) => b.type === 'text' && b.text?.trim())
+              .map((b: any) => b.text.trim())
+              .filter((t: string) => !t.startsWith('<task-notification>') && !t.startsWith('<system-reminder>') &&
+                !t.startsWith('<local-command-caveat>') && !t.startsWith('[Request interrupted'));
+            if (textParts.length === 0) continue;
+            promptText = textParts.join(' ');
+          }
+
+          if (promptText && promptText.length > 0) {
+            result.userPrompts.push(promptText.length > 80 ? promptText.slice(0, 77) + '\u2026' : promptText);
+          }
+        } catch {
+          // skip
+        }
+      }
+    }
+
+    // Process leftover
+    if (leftover.trim() && result.userPrompts.length < MAX_PROMPTS) {
+      try {
+        const msg = JSON.parse(leftover.trim());
+        if (msg.type === 'user') {
+          const content = msg.message?.content;
+          if (content != null) {
+            let promptText: string | null = null;
+            if (typeof content === 'string') {
+              const t = content.trimStart();
+              if (!t.startsWith('<task-notification>') && !t.startsWith('<system-reminder>') &&
+                  !t.startsWith('<local-command-caveat>') && !t.startsWith('[Request interrupted')) {
+                promptText = content.trim();
+              }
+            } else if (Array.isArray(content)) {
+              if (!(content.length > 0 && content.every((b: any) => b.type === 'tool_result'))) {
+                const textParts = content.filter((b: any) => b.type === 'text' && b.text?.trim())
+                  .map((b: any) => b.text.trim())
+                  .filter((t: string) => !t.startsWith('<task-notification>') && !t.startsWith('<system-reminder>'));
+                if (textParts.length > 0) promptText = textParts.join(' ');
+              }
+            }
+            if (promptText && promptText.length > 0) {
+              result.userPrompts.push(promptText.length > 80 ? promptText.slice(0, 77) + '\u2026' : promptText);
+            }
+          }
+        }
+      } catch { /* skip */ }
+    }
+
+    fs.closeSync(fd);
 
     // Find the best project name from cwds
     // Filter out generic paths, pick the most frequent remaining one
@@ -361,6 +448,7 @@ export async function discoverSessions(): Promise<SessionInfo[]> {
       filePath: logFile,
       lastModified: stat.mtimeMs,
       endReason,
+      userPrompts: meta.userPrompts,
     });
   }
 

@@ -43,6 +43,7 @@ interface SessionState {
 
   // UI state
   selectedNodeId: string | null;
+  expandedNodeId: string | null;
   layoutDirection: LayoutDirection;
   showThinking: boolean;
   showText: boolean;
@@ -77,6 +78,7 @@ interface SessionState {
   setMessages: (messages: JSONLMessage[]) => void;
   appendMessages: (messages: JSONLMessage[]) => void;
   selectNode: (id: string | null) => void;
+  expandNode: (id: string | null) => void;
   setLayoutDirection: (dir: LayoutDirection) => void;
   toggleShowThinking: () => void;
   toggleShowText: () => void;
@@ -532,6 +534,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   // UI state
   selectedNodeId: null,
+  expandedNodeId: null,
   layoutDirection: 'TB',
   showThinking: true,
   showText: true,
@@ -595,6 +598,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         nodes: result.nodes,
         edges: result.edges,
         selectedNodeId: null,
+        expandedNodeId: null,
         newNodeIds: new Set<string>(),
         collapsedNodes: new Set<string>(),
         searchQuery: '',
@@ -621,6 +625,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         _cachedAllNodes: [],
         _cachedAllEdges: [],
         selectedNodeId: null,
+        expandedNodeId: null,
         newNodeIds: new Set<string>(),
         collapsedNodes: new Set<string>(),
         searchQuery: '',
@@ -742,7 +747,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     });
   },
 
-  selectNode: (id) => set({ selectedNodeId: id }),
+  selectNode: (id) => set({ selectedNodeId: id, expandedNodeId: null }),
+  expandNode: (id) => set({ expandedNodeId: id }),
 
   setLayoutDirection: (dir) => set({ layoutDirection: dir }),
 

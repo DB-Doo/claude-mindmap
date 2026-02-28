@@ -141,6 +141,8 @@ export interface SessionInfo {
   lastModified: number;
   /** Why/how this session ended. */
   endReason: SessionEndReason;
+  /** All user message summaries in order (truncated to 80 chars each). */
+  userPrompts?: string[];
 }
 
 // ---------------------------------------------------------------------------
