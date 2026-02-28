@@ -193,13 +193,13 @@ export default function Toolbar() {
             Load all ({totalMessageCount} msgs)
           </button>
         )}
-        {tokenStats.inputTokens > 0 && (
+        {(tokenStats.inputTokens > 0 || tokenStats.cacheRead > 0) && (
           <>
-            <span>In: {formatTokens(tokenStats.inputTokens)}</span>
+            <span>In: {formatTokens(tokenStats.inputTokens + tokenStats.cacheRead + tokenStats.cacheCreation)}</span>
             <span>Out: {formatTokens(tokenStats.outputTokens)}</span>
             <span style={costStyle}>${tokenStats.estimatedCost.toFixed(2)}</span>
             <span style={{ color: '#38bdf8' }}>
-              {((tokenStats.inputTokens + tokenStats.outputTokens) / 1_000_000 * 0.5).toFixed(1)}ml
+              {((tokenStats.inputTokens + tokenStats.cacheRead + tokenStats.cacheCreation + tokenStats.outputTokens) / 1_000_000 * 0.5).toFixed(1)}ml
             </span>
           </>
         )}

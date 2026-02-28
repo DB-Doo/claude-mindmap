@@ -100,17 +100,27 @@ const PRICING: Record<string, { input: number; output: number }> = {
 const DEFAULT_PRICING = { input: 3, output: 15 };
 
 function computeTokenStats(messages: JSONLMessage[]): TokenStats {
+  // Deduplicate by message ID — Claude Code writes multiple streaming chunks
+  // per API call, each with cumulative usage. Only use the last chunk per ID.
+  const lastUsageById = new Map<string, { usage: any; model: string }>();
+
+  for (const msg of messages) {
+    if (msg.type !== 'assistant') continue;
+    const m = (msg as any).message;
+    const usage = m?.usage;
+    if (!usage) continue;
+    const id = m?.id || '';
+    // Later entries for the same ID overwrite earlier ones (last = final usage)
+    lastUsageById.set(id, { usage, model: m?.model || '' });
+  }
+
   let inputTokens = 0;
   let outputTokens = 0;
   let cacheRead = 0;
   let cacheCreation = 0;
   let estimatedCost = 0;
 
-  for (const msg of messages) {
-    if (msg.type !== 'assistant') continue;
-    const usage = (msg as any).message?.usage;
-    if (!usage) continue;
-
+  for (const { usage, model } of lastUsageById.values()) {
     const inTok = usage.input_tokens || 0;
     const outTok = usage.output_tokens || 0;
     const cRead = usage.cache_read_input_tokens || 0;
@@ -121,9 +131,14 @@ function computeTokenStats(messages: JSONLMessage[]): TokenStats {
     cacheRead += cRead;
     cacheCreation += cCreate;
 
-    const model = (msg as any).message?.model || '';
     const price = PRICING[model] || DEFAULT_PRICING;
-    estimatedCost += (inTok * price.input + outTok * price.output) / 1_000_000;
+    // Cache-aware pricing: cache_read at 10%, cache_creation at 125%
+    estimatedCost += (
+      inTok * price.input +
+      cRead * price.input * 0.1 +
+      cCreate * price.input * 1.25 +
+      outTok * price.output
+    ) / 1_000_000;
   }
 
   return { inputTokens, outputTokens, cacheRead, cacheCreation, estimatedCost };
@@ -560,15 +575,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
     const { activity, detail } = detectActivity(combined);
 
-    // Incremental token stats: only compute delta from new messages
-    const delta = computeTokenStats(messages);
-    const tokenStats: TokenStats = {
-      inputTokens: state.tokenStats.inputTokens + delta.inputTokens,
-      outputTokens: state.tokenStats.outputTokens + delta.outputTokens,
-      cacheRead: state.tokenStats.cacheRead + delta.cacheRead,
-      cacheCreation: state.tokenStats.cacheCreation + delta.cacheCreation,
-      estimatedCost: state.tokenStats.estimatedCost + delta.estimatedCost,
-    };
+    // Recompute from all messages to stay accurate (dedup handles streaming chunks)
+    const tokenStats = computeTokenStats(combined);
 
     // Keep session cache current
     if (state.activeSessionPath) {

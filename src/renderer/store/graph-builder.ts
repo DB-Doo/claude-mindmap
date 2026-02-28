@@ -477,7 +477,8 @@ export function buildGraph(
   }
 
   // ---- Compute turn tokens for user nodes ----
-  // Walk messages: each user message starts a turn, accumulate assistant tokens until next user msg
+  // Walk messages: each user message starts a turn, accumulate assistant tokens until next user msg.
+  // Dedup by message.id since streaming chunks repeat usage for the same API call.
   {
     const userNodeMap = new Map<string, GraphNode>();
     for (const n of nodes) {
@@ -485,33 +486,42 @@ export function buildGraph(
     }
 
     let currentUserNode: GraphNode | null = null;
-    let turnIn = 0;
-    let turnOut = 0;
+    // Map of message.id → { in, out } for the current turn (last chunk wins)
+    let turnUsage = new Map<string, { in: number; out: number }>();
+
+    function flushTurn() {
+      if (!currentUserNode || turnUsage.size === 0) return;
+      let turnIn = 0;
+      let turnOut = 0;
+      for (const u of turnUsage.values()) {
+        turnIn += u.in;
+        turnOut += u.out;
+      }
+      if (turnIn > 0 || turnOut > 0) {
+        currentUserNode.turnInputTokens = turnIn;
+        currentUserNode.turnOutputTokens = turnOut;
+      }
+    }
 
     for (const msg of messages) {
       if (msg.type === 'user') {
-        // Flush previous turn
-        if (currentUserNode && (turnIn > 0 || turnOut > 0)) {
-          currentUserNode.turnInputTokens = turnIn;
-          currentUserNode.turnOutputTokens = turnOut;
-        }
-        // Start new turn if this user message has a node
+        flushTurn();
         currentUserNode = userNodeMap.get(msg.uuid) || null;
-        turnIn = 0;
-        turnOut = 0;
+        turnUsage = new Map();
       } else if (msg.type === 'assistant' && currentUserNode) {
-        const usage = (msg as any).message?.usage;
+        const m = (msg as any).message;
+        const usage = m?.usage;
         if (usage) {
-          turnIn += usage.input_tokens || 0;
-          turnOut += usage.output_tokens || 0;
+          const mid = m?.id || msg.uuid;
+          // Overwrite: later chunk for same API call has final usage
+          turnUsage.set(mid, {
+            in: usage.input_tokens || 0,
+            out: usage.output_tokens || 0,
+          });
         }
       }
     }
-    // Flush last turn
-    if (currentUserNode && (turnIn > 0 || turnOut > 0)) {
-      currentUserNode.turnInputTokens = turnIn;
-      currentUserNode.turnOutputTokens = turnOut;
-    }
+    flushTurn();
   }
 
   // ---- Synthetic session-end node ----
