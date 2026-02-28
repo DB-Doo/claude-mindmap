@@ -53,8 +53,16 @@ function formatToolLabel(toolName: string, input: any): string {
       const q = input?.questions?.[0]?.question;
       return q ? truncate(String(q), 100) : 'Question';
     }
-    default:
+    default: {
+      // MCP tools: extract provider + method for a readable label
+      const mcpMatch = toolName.match(/^mcp__(?:claude_ai_)?(.+?)__(.+)$/i);
+      if (mcpMatch) {
+        const provider = mcpMatch[1].replace(/_/g, ' ');
+        const method = mcpMatch[2].replace(/_/g, ' ');
+        return `${provider}: ${method}`;
+      }
       return toolName;
+    }
   }
 }
 

@@ -11,6 +11,23 @@ const TOOL_ICONS: Record<string, string> = {
   Task: '\uD83D\uDE80', Skill: '\u2B50', AskUserQuestion: '\u2753',
 };
 
+/** Turn long MCP tool names into readable short names.
+ *  e.g. "mcp__claude_ai_Google_Calendar__gcal_list_events" → "Google Calendar: list events" */
+function formatToolDisplayName(name: string): string {
+  // Match MCP-style names: mcp__<provider>__<method>
+  const mcpMatch = name.match(/^mcp__(?:claude_ai_)?(.+?)__(.+)$/i);
+  if (mcpMatch) {
+    const provider = mcpMatch[1].replace(/_/g, ' ');
+    const method = mcpMatch[2].replace(/_/g, ' ');
+    return `${provider}: ${method}`;
+  }
+  // Truncate any other long name
+  if (name.length > 30) {
+    return name.slice(0, 27) + '\u2026';
+  }
+  return name;
+}
+
 function ToolNode({ data, id }: NodeProps) {
   const gn = data as unknown as GraphNode;
   const color = TOOL_COLORS[gn.toolName || ''] || TOOL_COLORS.default;
@@ -29,7 +46,7 @@ function ToolNode({ data, id }: NodeProps) {
       <Handle type="target" position={Position.Top} />
       <div className="node-header">
         <span className="node-icon">{icon}</span>
-        <span>{isQuestion ? 'Question' : gn.toolName}</span>
+        <span className="node-tool-name">{isQuestion ? 'Question' : formatToolDisplayName(gn.toolName || '')}</span>
         {gn.status === 'running' && <div className="spinner" />}
         {!isQuestion && gn.status && (
           <span className={`node-status ${gn.status}`}>

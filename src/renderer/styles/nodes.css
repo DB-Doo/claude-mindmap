@@ -32,6 +32,14 @@
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--text-secondary);
+  overflow: hidden;
+}
+
+.node-tool-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 /* ----- Node Label ----- */
