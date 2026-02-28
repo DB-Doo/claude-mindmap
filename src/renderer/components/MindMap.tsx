@@ -276,23 +276,14 @@ export default function MindMap() {
     return () => window.removeEventListener('keydown', handler);
   }, [expandNode, navigateExpandedNode]);
 
-  // Click-to-teleport on minimap: convert SVG click coords → flow coords
+  // Click-to-teleport on minimap: use MiniMap's built-in onClick which
+  // provides the click position already converted to flow coordinates.
   const minimapRef = useRef<HTMLDivElement>(null);
-  const onMinimapClick = useCallback((e: React.MouseEvent) => {
-    const container = minimapRef.current;
-    if (!container) return;
-    const svg = container.querySelector('svg');
-    if (!svg) return;
-    const viewBox = svg.viewBox.baseVal;
-    if (!viewBox || viewBox.width === 0 || viewBox.height === 0) return;
-    const rect = svg.getBoundingClientRect();
-    const ratioX = (e.clientX - rect.left) / rect.width;
-    const ratioY = (e.clientY - rect.top) / rect.height;
-    const flowX = viewBox.x + ratioX * viewBox.width;
-    const flowY = viewBox.y + ratioY * viewBox.height;
+
+  const onMinimapClick = useCallback((_event: React.MouseEvent, position: { x: number; y: number }) => {
     const currentZoom = getZoom();
     beginProgrammaticMove();
-    setCenter(flowX, flowY, { duration: 300, zoom: currentZoom });
+    setCenter(position.x, position.y, { duration: 300, zoom: currentZoom });
     endProgrammaticMoveAfter(400);
   }, [setCenter, getZoom, beginProgrammaticMove, endProgrammaticMoveAfter]);
 
@@ -367,7 +358,6 @@ export default function MindMap() {
       <Controls />
       <div
         ref={minimapRef}
-        onClick={onMinimapClick}
         style={{ position: 'absolute', bottom: 10, right: 10 }}
       >
         {/* Resize handle — top-left corner, large grab area */}
@@ -392,6 +382,7 @@ export default function MindMap() {
           </svg>
         </div>
         <MiniMap
+          onClick={onMinimapClick}
           nodeColor={(n) => {
             const gn = n.data as any;
             if (gn?.kind === 'user') return '#34d399';
