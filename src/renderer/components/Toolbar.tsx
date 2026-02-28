@@ -223,8 +223,18 @@ export default function Toolbar() {
 /* ── Per-pane toolbar row (used in split mode, one per pane) ── */
 
 export function PaneToolbar({ paneId }: { paneId: PaneId }) {
+  const label = paneId === 'primary' ? 'L' : 'R';
   return (
-    <div style={rowStyle}>
+    <div style={{ ...rowStyle, flex: 1, minWidth: 0 }}>
+      <span style={{
+        fontSize: 9,
+        fontWeight: 700,
+        color: '#a855f7',
+        opacity: 0.5,
+        marginRight: 2,
+      }}>
+        {label}
+      </span>
       <PaneControls paneId={paneId} />
     </div>
   );

@@ -25,24 +25,28 @@ export default function App() {
       <SessionPicker />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <Toolbar />
+        {/* Split mode: both pane toolbars in one shared row, guaranteed aligned */}
+        {splitMode && (
+          <div style={{ display: 'flex', flexShrink: 0 }}>
+            <PaneToolbar paneId="primary" />
+            <div style={{ width: 6, flexShrink: 0 }} />
+            <PaneToolbar paneId="secondary" />
+          </div>
+        )}
         <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-          {/* Primary pane — ReactFlowProvider at this level (matches original layout) */}
+          {/* Primary pane */}
           <ReactFlowProvider>
             <div style={{
               flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
+              position: 'relative',
               minWidth: 0,
               outline: primaryFocused ? '2px solid #a855f740' : 'none',
               outlineOffset: -2,
               transition: 'outline-color 0.2s',
             }}>
-              {splitMode && <PaneToolbar paneId="primary" />}
-              <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-                <MindMap />
-                <ThinkingIndicator />
-                <LiveStatusBar paneId="primary" />
-              </div>
+              <MindMap />
+              <ThinkingIndicator />
+              <LiveStatusBar paneId="primary" />
             </div>
           </ReactFlowProvider>
           {/* Secondary pane (split mode only) */}
@@ -52,16 +56,12 @@ export default function App() {
               <div style={{
                 flex: 1,
                 display: 'flex',
-                flexDirection: 'column',
                 minWidth: 0,
                 outline: secondaryFocused ? '2px solid #a855f740' : 'none',
                 outlineOffset: -2,
                 transition: 'outline-color 0.2s',
               }}>
-                <PaneToolbar paneId="secondary" />
-                <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-                  <SecondaryPane />
-                </div>
+                <SecondaryPane />
               </div>
             </>
           )}
