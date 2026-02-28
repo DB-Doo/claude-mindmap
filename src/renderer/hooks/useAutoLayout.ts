@@ -15,7 +15,18 @@ function estimateNodeHeight(node: GraphNode): number {
   // Last-message nodes show up to 16 lines in a wider box
   const maxLines = node.isLastMessage ? 16 : MAX_LINES;
   const charsPerLine = node.isLastMessage ? 44 : CHARS_PER_LINE; // wider node
-  const lines = Math.min(Math.ceil(node.label.length / charsPerLine), maxLines);
+  // Count actual rendered lines: each \n creates a line break (pre-wrap),
+  // plus long lines wrap. Take the larger of char-based vs newline-based estimate.
+  const charBasedLines = Math.ceil(node.label.length / charsPerLine);
+  let actualLines = charBasedLines;
+  if (node.label.includes('\n')) {
+    const segments = node.label.split('\n');
+    actualLines = 0;
+    for (const seg of segments) {
+      actualLines += Math.max(1, Math.ceil(seg.length / charsPerLine));
+    }
+  }
+  const lines = Math.min(Math.max(charBasedLines, actualLines), maxLines);
   let height = BASE_HEIGHT + lines * LINE_HEIGHT;
   // User nodes have extra content: reply-to snippet + token tally
   if (node.kind === 'user') {
