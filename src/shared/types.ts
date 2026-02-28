@@ -115,6 +115,8 @@ export interface GraphNode {
   questionText?: string;
   /** True when this text node is the first response after a user message. */
   isFirstResponse?: boolean;
+  /** True on the last text/question node in an active session (waiting for user). */
+  isLastMessage?: boolean;
   /** Pre-computed lowercase search text (label + detail + toolName). */
   _searchText?: string;
 }

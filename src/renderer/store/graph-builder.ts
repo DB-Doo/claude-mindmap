@@ -550,6 +550,27 @@ export function buildGraph(
     flushTurn();
   }
 
+  // ---- Mark last message for active sessions ----
+  // Find the last text or AskUserQuestion node and flag it so the renderer
+  // can show an expanded preview matching what the terminal displays.
+  if (endReason === 'active' && nodes.length > 0) {
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      const n = nodes[i];
+      if (n.kind === 'text') {
+        n.isLastMessage = true;
+        // Show more content than the default 80-char label
+        n.label = truncate(n.detail, 500);
+        break;
+      }
+      if (n.kind === 'tool_use' && n.toolName === 'AskUserQuestion') {
+        n.isLastMessage = true;
+        break;
+      }
+      // Stop searching if we hit a user node — there's no assistant response yet
+      if (n.kind === 'user') break;
+    }
+  }
+
   // ---- Synthetic session-end node ----
   if (endReason && endReason !== 'active' && nodes.length > 0) {
     const lastNode = nodes[nodes.length - 1];

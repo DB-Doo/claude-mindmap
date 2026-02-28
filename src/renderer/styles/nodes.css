@@ -578,6 +578,80 @@
 }
 
 /* ============================================================
+   Last Message — Enhanced display for active session's final node
+   ============================================================ */
+
+/* Last text response: wider, green glow, more visible text */
+.text-last-message {
+  border-color: var(--neon-emerald);
+  border-width: 2px;
+  max-width: 420px;
+  box-shadow:
+    0 0 12px rgba(52, 211, 153, 0.3),
+    0 0 28px rgba(52, 211, 153, 0.12);
+  background: linear-gradient(
+    135deg,
+    rgba(52, 211, 153, 0.06) 0%,
+    var(--bg-secondary) 50%
+  );
+}
+
+.text-last-message .node-header {
+  color: var(--neon-emerald);
+}
+
+.text-last-message .node-label {
+  -webkit-line-clamp: 16;
+  font-size: 12px;
+  color: #e2e8f0;
+}
+
+/* Last AskUserQuestion: green glow overrides pink */
+.tool-last-message {
+  border-color: var(--neon-emerald) !important;
+  border-width: 2px;
+  box-shadow:
+    0 0 12px rgba(52, 211, 153, 0.3),
+    0 0 28px rgba(52, 211, 153, 0.12) !important;
+}
+
+/* "Waiting for you" badge */
+.waiting-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: rgba(52, 211, 153, 0.1);
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  font-size: 10px;
+  font-weight: 600;
+  color: #34d399;
+  letter-spacing: 0.3px;
+}
+
+.waiting-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34d399;
+  flex-shrink: 0;
+  animation: waiting-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes waiting-pulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5);
+  }
+  50% {
+    opacity: 0.5;
+    box-shadow: 0 0 0 4px rgba(52, 211, 153, 0);
+  }
+}
+
+/* ============================================================
    Animations
    ============================================================ */
 

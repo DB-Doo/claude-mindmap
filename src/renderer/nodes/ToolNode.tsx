@@ -35,11 +35,10 @@ function ToolNode({ data, id }: NodeProps) {
   const toolClass = `tool-${(gn.toolName || 'default').toLowerCase()}`;
   const dimmed = gn.searchMatch === false && gn.searchMatch !== undefined;
   const needsAnimation = gn.isNew || dimmed;
-
-  const className = `mind-map-node ${toolClass} ${gn.isNew ? 'node-new' : ''} ${gn.status === 'running' ? 'node-running' : ''} ${gn.searchMatch ? 'search-match' : ''}`;
-  const style = { '--pulse-color': color } as React.CSSProperties;
-
   const isQuestion = gn.toolName === 'AskUserQuestion' && gn.questionOptions;
+
+  const className = `mind-map-node ${toolClass} ${gn.isLastMessage && isQuestion ? 'tool-last-message' : ''} ${gn.isNew ? 'node-new' : ''} ${gn.status === 'running' ? 'node-running' : ''} ${gn.searchMatch ? 'search-match' : ''}`;
+  const style = { '--pulse-color': color } as React.CSSProperties;
 
   const content = (
     <>
@@ -58,6 +57,12 @@ function ToolNode({ data, id }: NodeProps) {
       <div className="node-label">{gn.label}</div>
       {isQuestion && gn.questionOptions && (
         <div className="question-options">
+          {gn.isLastMessage && (
+            <div className="waiting-badge">
+              <span className="waiting-dot" />
+              <span>{'\u2753'} Waiting for your answer</span>
+            </div>
+          )}
           {gn.questionOptions.map((opt, idx) => (
             <div
               key={idx}

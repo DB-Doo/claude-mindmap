@@ -42,26 +42,26 @@ function ActivityBanner({
       style={{
         display: 'flex',
         alignItems: 'stretch',
-        background: 'rgba(10, 10, 15, 0.85)',
-        border: `1px solid ${borderColor}`,
+        background: 'rgba(10, 10, 15, 0.95)',
+        border: `1.5px solid ${borderColor}`,
         borderRadius: 8,
         boxShadow: isCurrent
-          ? `0 0 12px ${config.color}40, 0 0 24px ${config.color}20`
-          : (isIdle ? 'none' : `0 0 8px ${config.color}20`),
-        backdropFilter: 'blur(8px)',
+          ? `0 0 14px ${config.color}50, 0 0 28px ${config.color}25, 0 4px 12px rgba(0,0,0,0.5)`
+          : `0 0 8px ${config.color}30, 0 4px 12px rgba(0,0,0,0.4)`,
+        backdropFilter: 'blur(12px)',
         cursor: 'pointer',
         transition: 'opacity 0.2s, transform 0.2s',
-        opacity: isCurrent ? 1 : 0.7,
+        opacity: isCurrent ? 1 : 0.85,
         overflow: 'hidden',
         maxWidth: 420,
       }}
     >
       {/* Left: "VIEWING" tag for current session, or session prompt */}
       <div style={{
-        padding: '6px 10px',
-        fontSize: 10,
+        padding: '7px 12px',
+        fontSize: 11,
         fontFamily: 'var(--font-mono, monospace)',
-        color: isCurrent ? '#e2e8f0' : '#94a3b8',
+        color: isCurrent ? '#f1f5f9' : '#cbd5e1',
         maxWidth: 240,
         overflow: 'hidden',
         textOverflow: 'ellipsis',
@@ -90,8 +90,8 @@ function ActivityBanner({
         display: 'flex',
         alignItems: 'center',
         gap: 6,
-        padding: '6px 10px',
-        background: `${config.color}08`,
+        padding: '7px 12px',
+        background: `${config.color}0a`,
       }}>
         <span style={{
           fontSize: 13,
@@ -101,7 +101,7 @@ function ActivityBanner({
           {config.icon}
         </span>
         <span style={{
-          fontSize: 10,
+          fontSize: 11,
           fontFamily: 'var(--font-mono, monospace)',
           color: config.color,
           fontWeight: 600,
@@ -162,7 +162,7 @@ export default function ThinkingIndicator() {
       top: 52,
       left: '50%',
       transform: 'translateX(-50%)',
-      zIndex: 10,
+      zIndex: 50,
       display: 'flex',
       flexDirection: 'row',
       alignItems: 'flex-start',
