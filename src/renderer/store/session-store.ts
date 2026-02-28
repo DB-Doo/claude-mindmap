@@ -244,17 +244,32 @@ function applyFilters(
   const descendantCounts = computeAllDescendantCounts(children);
 
   if (collapsedNodes.size > 0) {
-    // Never hide user nodes or their response chains. When collapsing user1,
-    // only hide user1's direct response nodes — stop traversal at the next
-    // user node so user2's response chain stays fully visible.
+    // Hide response nodes for collapsed user turns using TWO strategies:
+    // 1. Edge-based: traverse descendants in the edge graph (handles connected nodes)
+    // 2. Order-based: hide all non-user nodes between a collapsed user and the next
+    //    user node in array order (catches orphans with broken parent edges)
     const userIds = new Set(filtered.filter(n => n.kind === 'user').map(n => n.id));
     const hiddenIds = new Set<string>();
+
+    // Strategy 1: Edge-based traversal (stop at user node boundaries)
     for (const collapsedId of collapsedNodes) {
       if (!validIds.has(collapsedId)) continue;
       for (const descendant of getDescendantIds(collapsedId, children, userIds)) {
         if (!userIds.has(descendant)) {
           hiddenIds.add(descendant);
         }
+      }
+    }
+
+    // Strategy 2: Order-based — walk the nodes array (which is in message order
+    // from buildGraph). All non-user nodes between a collapsed user node and the
+    // next user node belong to that collapsed turn, even if they're edge-orphans.
+    let inCollapsedTurn = false;
+    for (const node of filtered) {
+      if (node.kind === 'user') {
+        inCollapsedTurn = collapsedNodes.has(node.id);
+      } else if (inCollapsedTurn) {
+        hiddenIds.add(node.id);
       }
     }
 
@@ -532,16 +547,11 @@ function fullRebuild(state: SessionState, messages: JSONLMessage[], maxTurnsOver
     ? autoCollapseUserNodes(allNodes, ACTIVE_EXPAND_TURNS)
     : autoCollapseUserNodes(allNodes, 0);
 
-  const userCount = allNodes.filter(n => n.kind === 'user').length;
-  console.log(`[fullRebuild] isActive=${isActive} userNodes=${userCount} collapsed=${autoCollapsed.size} allNodes=${allNodes.length} ACTIVE_EXPAND_TURNS=${ACTIVE_EXPAND_TURNS}`);
-
   const { nodes, edges } = applyFilters(
     allNodes, allEdges,
     state.showThinking, state.showText, state.showSystem,
     autoCollapsed, state.searchQuery,
   );
-
-  console.log(`[fullRebuild] after filter: visibleNodes=${nodes.length} (was ${allNodes.length}), hiddenByCollapse=${allNodes.length - nodes.length}`);
 
   return { allNodes, allEdges, nodes, edges, isWindowed, totalMessageCount: messages.length, autoCollapsed };
 }
