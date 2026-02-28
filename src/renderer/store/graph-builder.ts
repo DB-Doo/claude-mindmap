@@ -148,19 +148,46 @@ export function buildGraph(
   }
 
   // ---- Collect assistant text for reply-to snippets ----
-  // Maps assistant message uuid → last text content from that message
+  // Build parentUuid lookup and map ALL assistant chunk uuids (same API call) to text.
+  // Claude Code writes multiple streaming chunks per API call with different uuids,
+  // and may inject system messages between turns, so we need to walk the parent chain.
+  const parentOf = new Map<string, string>();
   const assistantTextByUuid = new Map<string, string>();
-  for (const msg of messages) {
-    if (msg.type !== 'assistant') continue;
-    const content = (msg as AssistantMessage).message?.content;
-    if (!Array.isArray(content)) continue;
-    // Find the last text block in the assistant message
-    for (let i = content.length - 1; i >= 0; i--) {
-      if (content[i].type === 'text') {
-        assistantTextByUuid.set(msg.uuid, (content[i] as any).text);
-        break;
+  {
+    // Collect text per API call (message.id), and map each chunk uuid → message.id
+    const textByMid = new Map<string, string>();
+    const uuidToMid = new Map<string, string>();
+    for (const msg of messages) {
+      if (msg.uuid && msg.parentUuid) parentOf.set(msg.uuid, msg.parentUuid);
+      if (msg.type !== 'assistant') continue;
+      const m = (msg as any).message;
+      const mid = m?.id || '';
+      if (mid) uuidToMid.set(msg.uuid, mid);
+      const content = m?.content;
+      if (!Array.isArray(content)) continue;
+      for (let i = content.length - 1; i >= 0; i--) {
+        if (content[i].type === 'text' && content[i].text?.trim()) {
+          textByMid.set(mid, content[i].text);
+          break;
+        }
       }
     }
+    // Map every assistant chunk uuid to its API call's text
+    for (const [uuid, mid] of uuidToMid) {
+      const text = textByMid.get(mid);
+      if (text) assistantTextByUuid.set(uuid, text);
+    }
+  }
+
+  /** Walk the parent chain to find the nearest assistant text snippet. */
+  function findReplySnippet(startUuid: string | null | undefined): string | undefined {
+    let cur = startUuid;
+    for (let i = 0; i < 20 && cur; i++) {
+      const text = assistantTextByUuid.get(cur);
+      if (text) return truncate(text, 80);
+      cur = parentOf.get(cur);
+    }
+    return undefined;
   }
 
   // ---- Second pass: build nodes ----
@@ -204,10 +231,9 @@ export function buildGraph(
 
       if (content == null) continue;
 
-      // Resolve reply-to snippet from parent assistant message
-      const replyToSnippet = msg.parentUuid
-        ? truncate(assistantTextByUuid.get(msg.parentUuid) || '', 80)
-        : undefined;
+      // Resolve reply-to snippet: walk parent chain through system messages
+      // and across streaming chunks to find the nearest assistant text
+      const replyToSnippet = findReplySnippet(msg.parentUuid);
 
       if (typeof content === 'string') {
         // Skip system-injected messages (task notifications, system reminders, etc.)
