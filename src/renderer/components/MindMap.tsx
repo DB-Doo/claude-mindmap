@@ -47,8 +47,8 @@ export default function MindMap() {
   const activeSessionPath = useSessionStore(s => s.activeSessionPath);
   const filterRevision = useSessionStore(s => s._filterRevision);
 
-  const layoutResult = useAutoLayout(graphNodes, graphEdges, filterRevision);
   const expandedNodeId = useSessionStore(s => s.expandedNodeId);
+  const layoutResult = useAutoLayout(graphNodes, graphEdges, filterRevision, expandedNodeId);
 
   // Inject isExpanded flag into node data so node components can render inline expansion
   const nodes = useMemo(() => layoutResult.nodes.map(n => {

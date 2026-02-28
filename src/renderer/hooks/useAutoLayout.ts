@@ -11,7 +11,22 @@ const COL_GAP = 120;  // horizontal gap between columns
 const ROW_GAP = 35;   // vertical gap between nodes in a column
 const TOP_MARGIN = 40;
 
-function estimateNodeHeight(node: GraphNode): number {
+const EXPANDED_CHARS_PER_LINE = 70; // wider expanded node (~600px)
+const EXPANDED_LINE_HEIGHT = 19;    // 12px * 1.6 line-height
+const EXPANDED_MAX_CONTENT = 500;   // matches CSS max-height on .node-expanded-content
+const EXPANDED_OVERHEAD = 60;       // header + padding
+
+function estimateNodeHeight(node: GraphNode, isExpanded = false): number {
+  if (isExpanded) {
+    const text = node.detail || node.label;
+    let lines = 0;
+    for (const seg of text.split('\n')) {
+      lines += Math.max(1, Math.ceil(seg.length / EXPANDED_CHARS_PER_LINE));
+    }
+    const contentHeight = lines * EXPANDED_LINE_HEIGHT;
+    return Math.min(EXPANDED_OVERHEAD + contentHeight, EXPANDED_OVERHEAD + EXPANDED_MAX_CONTENT);
+  }
+
   // Last-message nodes show up to 16 lines in a wider box
   const maxLines = node.isLastMessage ? 16 : MAX_LINES;
   const charsPerLine = node.isLastMessage ? 44 : CHARS_PER_LINE; // wider node
@@ -59,6 +74,7 @@ function nodeTypeFromKind(kind: GraphNode['kind']): string {
 function conversationLayout(
   graphNodes: GraphNode[],
   graphEdges: GraphEdge[],
+  expandedNodeId?: string | null,
 ): Map<string, { x: number; y: number }> {
   const positions = new Map<string, { x: number; y: number }>();
   if (graphNodes.length === 0) return positions;
@@ -122,7 +138,7 @@ function conversationLayout(
     let y = TOP_MARGIN;
     for (const node of column) {
       positions.set(node.id, { x, y });
-      y += estimateNodeHeight(node) + ROW_GAP;
+      y += estimateNodeHeight(node, node.id === expandedNodeId) + ROW_GAP;
     }
     x += NODE_WIDTH + COL_GAP;
   }
@@ -140,6 +156,7 @@ export function useAutoLayout(
   graphNodes: GraphNode[],
   graphEdges: GraphEdge[],
   filterRevision: number = 0,
+  expandedNodeId?: string | null,
 ): { nodes: Node[]; edges: Edge[] } {
   const posCache = useRef<Map<string, CachedPosition>>(new Map());
 
@@ -175,7 +192,7 @@ export function useAutoLayout(
 
     if (!isIncremental) {
       // Full conversation layout
-      const positions = conversationLayout(graphNodes, graphEdges);
+      const positions = conversationLayout(graphNodes, graphEdges, expandedNodeId);
       cache.clear();
       for (const [id, pos] of positions) {
         cache.set(id, pos);
@@ -223,7 +240,7 @@ export function useAutoLayout(
           currentY = TOP_MARGIN;
         }
         cache.set(gn.id, { x: currentX, y: currentY });
-        currentY += estimateNodeHeight(gn) + ROW_GAP;
+        currentY += estimateNodeHeight(gn, gn.id === expandedNodeId) + ROW_GAP;
       }
     }
 
@@ -238,12 +255,13 @@ export function useAutoLayout(
     // Build React Flow nodes
     const nodes = graphNodes.map((gn) => {
       const pos = cache.get(gn.id) || { x: 0, y: 0 };
+      const expanded = gn.id === expandedNodeId;
       return {
         id: gn.id,
         type: nodeTypeFromKind(gn.kind),
         position: { x: pos.x, y: pos.y },
-        width: gn.isLastMessage ? 420 : NODE_WIDTH,
-        height: estimateNodeHeight(gn),
+        width: expanded ? 600 : gn.isLastMessage ? 420 : NODE_WIDTH,
+        height: estimateNodeHeight(gn, expanded),
         data: gn as unknown as Record<string, unknown>,
       };
     }) satisfies Node[];
@@ -265,5 +283,5 @@ export function useAutoLayout(
     }));
 
     return { nodes, edges };
-  }, [graphNodes, graphEdges, filterRevision]);
+  }, [graphNodes, graphEdges, filterRevision, expandedNodeId]);
 }
