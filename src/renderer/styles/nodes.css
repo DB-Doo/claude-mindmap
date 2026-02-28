@@ -822,6 +822,27 @@
   overflow: visible;
 }
 
+/* Smooth expand-in animation for the content area */
+@keyframes expand-content-in {
+  0% {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  40% {
+    opacity: 0.7;
+    transform: translateY(2px);
+  }
+  70% {
+    transform: translateY(-1px);
+  }
+  100% {
+    max-height: 500px;
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .node-expanded-content {
   font-size: 12px;
   color: #e2e8f0;
@@ -833,6 +854,7 @@
   padding: 8px 4px;
   scrollbar-width: thin;
   scrollbar-color: #475569 transparent;
+  animation: expand-content-in 0.6s var(--ease-fluid) both;
 }
 
 .node-expanded-content::-webkit-scrollbar {
@@ -846,6 +868,11 @@
 .node-expanded-content::-webkit-scrollbar-thumb {
   background: #475569;
   border-radius: 3px;
+}
+
+/* Smooth position transitions for all ReactFlow nodes (slide when layout changes) */
+.react-flow__node {
+  transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
 }
 
 /* ============================================================
