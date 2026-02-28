@@ -553,6 +553,9 @@ export function buildGraph(
   // ---- Mark last message for active sessions ----
   // Find the last text or AskUserQuestion node and flag it so the renderer
   // can show an expanded preview matching what the terminal displays.
+  // Only marks a node if it's truly the final substantive node (Claude is
+  // waiting for the user). Skips system/thinking nodes but stops at any
+  // tool_use (means Claude is still working) or user node.
   if (endReason === 'active' && nodes.length > 0) {
     for (let i = nodes.length - 1; i >= 0; i--) {
       const n = nodes[i];
@@ -566,8 +569,11 @@ export function buildGraph(
         n.isLastMessage = true;
         break;
       }
-      // Stop searching if we hit a user node — there's no assistant response yet
-      if (n.kind === 'user') break;
+      // Skip system and thinking nodes — they don't indicate Claude is working
+      if (n.kind === 'system' || n.kind === 'thinking') continue;
+      // Any other node kind (tool_use, user, compaction) means Claude isn't
+      // waiting for user input — don't mark anything
+      break;
     }
   }
 
