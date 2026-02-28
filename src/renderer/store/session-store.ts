@@ -350,10 +350,12 @@ export function detectActivity(messages: JSONLMessage[], isKnownActive = false):
       const stopReason = (msg as any).message?.stop_reason;
       if (stopReason === 'end_turn') return { activity: 'waiting_on_user' };
 
-      // Staleness fallback: if the last message is >3s old and we'd say
+      // Staleness fallback: if the last message is old and we'd say
       // 'responding' or 'thinking', Claude almost certainly finished and we
       // missed the final signal (streaming chunk timing, watcher delay, etc.)
-      if (lastMessageAge > 3_000) {
+      // Use 8s — short enough to catch stale banners, long enough to not
+      // false-positive on mid-turn pauses (text → tool_use transitions).
+      if (lastMessageAge > 8_000) {
         if (last.type === 'thinking' || last.type === 'text') {
           return { activity: 'waiting_on_user' };
         }
@@ -530,11 +532,17 @@ function fullRebuild(state: SessionState, messages: JSONLMessage[], maxTurnsOver
     ? autoCollapseUserNodes(allNodes, ACTIVE_EXPAND_TURNS)
     : autoCollapseUserNodes(allNodes, 0);
 
+  const userCount = allNodes.filter(n => n.kind === 'user').length;
+  console.log(`[fullRebuild] isActive=${isActive} userNodes=${userCount} collapsed=${autoCollapsed.size} allNodes=${allNodes.length} ACTIVE_EXPAND_TURNS=${ACTIVE_EXPAND_TURNS}`);
+
   const { nodes, edges } = applyFilters(
     allNodes, allEdges,
     state.showThinking, state.showText, state.showSystem,
     autoCollapsed, state.searchQuery,
   );
+
+  console.log(`[fullRebuild] after filter: visibleNodes=${nodes.length} (was ${allNodes.length}), hiddenByCollapse=${allNodes.length - nodes.length}`);
+
   return { allNodes, allEdges, nodes, edges, isWindowed, totalMessageCount: messages.length, autoCollapsed };
 }
 
