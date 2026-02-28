@@ -221,8 +221,8 @@ export default function MindMap() {
         : (target.position.y as number) + (nodeHeight as number) / 2;
       beginProgrammaticMove();
       userPanned.current = false;
-      setCenter(x, y, { duration: 300, zoom: 1.2 });
-      endProgrammaticMoveAfter(400);
+      setCenter(x, y, { duration: 200, zoom: 1.2 });
+      endProgrammaticMoveAfter(300);
     }
     clearCenterOnNode();
   }, [centerOnNodeId, centerOnNodeBottom, nodes, setCenter, clearCenterOnNode, beginProgrammaticMove, endProgrammaticMoveAfter]);
@@ -263,8 +263,11 @@ export default function MindMap() {
     selectNode(null);
   }, [selectNode, expandNode]);
 
-  // Keyboard navigation: arrow keys navigate nodes, Escape collapses
+  // Keyboard navigation: arrow keys navigate nodes, Escape collapses.
+  // Throttled so holding a key smoothly steps through nodes at a readable pace.
   const navigateNode = useSessionStore(s => s.navigateNode);
+  const navThrottleRef = useRef<number>(0);
+  const NAV_THROTTLE_MS = 250;
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       // Don't intercept when typing in an input/textarea
@@ -275,19 +278,20 @@ export default function MindMap() {
         if (useSessionStore.getState().expandedNodeId) expandNode(null);
         return;
       }
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        navigateNode('up');
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        navigateNode('down');
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        navigateNode('left');
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        navigateNode('right');
-      }
+
+      const dirMap: Record<string, 'up' | 'down' | 'left' | 'right'> = {
+        ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+      };
+      const dir = dirMap[e.key];
+      if (!dir) return;
+      e.preventDefault();
+
+      // Throttle: skip if fired too recently
+      const now = Date.now();
+      if (now - navThrottleRef.current < NAV_THROTTLE_MS) return;
+      navThrottleRef.current = now;
+
+      navigateNode(dir);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
