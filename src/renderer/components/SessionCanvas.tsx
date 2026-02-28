@@ -347,8 +347,17 @@ function SessionCanvasInner({ paneId }: { paneId: PaneId }) {
     useSessionStore.getState().setFocusedPane(paneId);
   }, [paneId]);
 
+  // Debug: log node data to help diagnose rendering issues
+  useEffect(() => {
+    console.log(`[SessionCanvas:${paneId}] nodes=${nodes.length}, edges=${edges.length}, sessionPath=${sessionPath}`);
+    if (nodes.length > 0) {
+      const first = nodes[0];
+      console.log(`[SessionCanvas:${paneId}] first node pos=(${first.position.x}, ${first.position.y}), type=${first.type}`);
+    }
+  }, [nodes.length, edges.length, sessionPath, paneId]);
+
   return (
-    <div onMouseDown={onPaneMouseDown} style={{ width: '100%', height: '100%', position: 'relative' }}>
+    <div onMouseDown={onPaneMouseDown} style={{ width: '100%', height: '100%' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -412,7 +421,6 @@ function SessionCanvasInner({ paneId }: { paneId: PaneId }) {
           />
         </div>
       </ReactFlow>
-      <LiveStatusBar paneId={paneId} compact={paneId === 'secondary'} />
     </div>
   );
 }
@@ -423,6 +431,10 @@ export default function SessionCanvas({ paneId }: { paneId: PaneId }) {
   return (
     <ReactFlowProvider>
       <SessionCanvasInner paneId={paneId} />
+      <LiveStatusBar paneId={paneId} compact={paneId === 'secondary'} />
     </ReactFlowProvider>
   );
 }
+
+/** Variant without ReactFlowProvider — use when the provider is supplied by a parent. */
+export { SessionCanvasInner };

@@ -1,5 +1,5 @@
-import SessionCanvas from './SessionCanvas';
+import { SessionCanvasInner } from './SessionCanvas';
 
 export default function MindMap() {
-  return <SessionCanvas paneId="primary" />;
+  return <SessionCanvasInner paneId="primary" />;
 }

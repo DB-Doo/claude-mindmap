@@ -1,7 +1,9 @@
+import { ReactFlowProvider } from '@xyflow/react';
 import MindMap from './components/MindMap';
 import SessionPicker from './components/SessionPicker';
 import Toolbar from './components/Toolbar';
 import ThinkingIndicator from './components/ThinkingIndicator';
+import LiveStatusBar from './components/LiveStatusBar';
 import SecondaryPane from './components/SecondaryPane';
 import SplitResizeHandle from './components/SplitResizeHandle';
 import { useSessionWatcher } from './hooks/useSessionWatcher';
@@ -24,18 +26,21 @@ export default function App() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <Toolbar />
         <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-          {/* Primary pane */}
-          <div style={{
-            flex: 1,
-            position: 'relative',
-            minWidth: 0,
-            outline: primaryFocused ? '2px solid #a855f740' : 'none',
-            outlineOffset: -2,
-            transition: 'outline-color 0.2s',
-          }}>
-            <MindMap />
-            <ThinkingIndicator />
-          </div>
+          {/* Primary pane — ReactFlowProvider at this level (matches original layout) */}
+          <ReactFlowProvider>
+            <div style={{
+              flex: 1,
+              position: 'relative',
+              minWidth: 0,
+              outline: primaryFocused ? '2px solid #a855f740' : 'none',
+              outlineOffset: -2,
+              transition: 'outline-color 0.2s',
+            }}>
+              <MindMap />
+              <ThinkingIndicator />
+              <LiveStatusBar paneId="primary" />
+            </div>
+          </ReactFlowProvider>
           {/* Secondary pane (split mode only) */}
           {splitMode && (
             <>
