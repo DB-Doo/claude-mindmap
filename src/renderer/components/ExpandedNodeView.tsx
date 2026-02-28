@@ -1,33 +1,35 @@
 import { useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useSessionStore } from '../store/session-store';
+import { useSessionStore, useFocusedPane } from '../store/session-store';
 import { TOOL_COLORS } from '../../shared/types';
 
 export default function ExpandedNodeView() {
   const expandNode = useSessionStore(s => s.expandNode);
-  const expandedNodeId = useSessionStore(s => s.expandedNodeId);
+  const expandedNodeId = useFocusedPane(p => p.expandedNodeId);
 
   const node = useSessionStore(s => {
-    if (!s.expandedNodeId) return null;
-    return s.nodes.find(n => n.id === s.expandedNodeId) ?? null;
+    const pane = s.panes[s.focusedPane];
+    if (!pane.expandedNodeId) return null;
+    return pane.nodes.find(n => n.id === pane.expandedNodeId) ?? null;
   });
 
   // BFS to collect Claude's reply text for user nodes
   const replyDetail = useSessionStore(s => {
-    if (!s.expandedNodeId) return null;
-    const selected = s.nodes.find(n => n.id === s.expandedNodeId);
+    const pane = s.panes[s.focusedPane];
+    if (!pane.expandedNodeId) return null;
+    const selected = pane.nodes.find(n => n.id === pane.expandedNodeId);
     if (!selected || selected.kind !== 'user') return null;
 
     const childMap = new Map<string, string[]>();
-    for (const e of s.edges) {
+    for (const e of pane.edges) {
       const list = childMap.get(e.source);
       if (list) list.push(e.target);
       else childMap.set(e.source, [e.target]);
     }
 
-    const nodeMap = new Map(s.nodes.map(n => [n.id, n]));
+    const nodeMap = new Map(pane.nodes.map(n => [n.id, n]));
     const textDetails: string[] = [];
-    const queue = [s.expandedNodeId];
+    const queue = [pane.expandedNodeId];
     const visited = new Set<string>();
 
     while (queue.length > 0) {
@@ -36,7 +38,7 @@ export default function ExpandedNodeView() {
       visited.add(id);
       const n = nodeMap.get(id);
       if (!n) continue;
-      if (n.kind === 'user' && id !== s.expandedNodeId) continue;
+      if (n.kind === 'user' && id !== pane.expandedNodeId) continue;
       if (n.kind === 'text') textDetails.push(n.detail);
       const children = childMap.get(id);
       if (children) for (const child of children) queue.push(child);

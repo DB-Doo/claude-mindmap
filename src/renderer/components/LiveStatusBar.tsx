@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSessionStore, type LiveActivity } from '../store/session-store';
+import { usePane, type LiveActivity, type PaneId } from '../store/session-store';
 
 function formatElapsed(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
@@ -17,7 +17,7 @@ function formatTokens(n: number): string {
   return String(n);
 }
 
-const ACTIVITY_LABELS: Record<LiveActivity, string> = {
+export const STATUS_LABELS: Record<LiveActivity, string> = {
   idle: 'Active',
   thinking: 'Thinking',
   tool_running: 'Running',
@@ -26,7 +26,7 @@ const ACTIVITY_LABELS: Record<LiveActivity, string> = {
   compacting: 'Compacting',
 };
 
-const ACTIVITY_COLORS: Record<LiveActivity, string> = {
+export const STATUS_COLORS: Record<LiveActivity, string> = {
   idle: '#475569',
   thinking: '#a855f7',
   tool_running: '#ff6b35',
@@ -35,13 +35,20 @@ const ACTIVITY_COLORS: Record<LiveActivity, string> = {
   compacting: '#fbbf24',
 };
 
-export default function LiveStatusBar() {
-  const liveActivity = useSessionStore(s => s.liveActivity);
-  const liveActivityDetail = useSessionStore(s => s.liveActivityDetail);
-  const turnStartTime = useSessionStore(s => s.turnStartTime);
-  const turnOutputTokens = useSessionStore(s => s.turnOutputTokens);
-  const turnThinkingMs = useSessionStore(s => s.turnThinkingMs);
-  const thinkingStartedAt = useSessionStore(s => s._thinkingStartedAt);
+export interface LiveStatusBarProps {
+  /** Which pane to show status for. */
+  paneId?: PaneId;
+  /** When true, shows a smaller/compact version (secondary pane). */
+  compact?: boolean;
+}
+
+export default function LiveStatusBar({ paneId = 'primary', compact = false }: LiveStatusBarProps) {
+  const liveActivity = usePane(paneId, p => p.liveActivity);
+  const liveActivityDetail = usePane(paneId, p => p.liveActivityDetail);
+  const turnStartTime = usePane(paneId, p => p.turnStartTime);
+  const turnOutputTokens = usePane(paneId, p => p.turnOutputTokens);
+  const turnThinkingMs = usePane(paneId, p => p.turnThinkingMs);
+  const thinkingStartedAt = usePane(paneId, p => p._thinkingStartedAt);
 
   const [now, setNow] = useState(Date.now());
 
@@ -60,12 +67,12 @@ export default function LiveStatusBar() {
   const elapsed = now - turnStartTime;
   const thinkingTotal = turnThinkingMs + (thinkingStartedAt ? now - thinkingStartedAt : 0);
 
-  let label = ACTIVITY_LABELS[liveActivity];
+  let label = STATUS_LABELS[liveActivity];
   if (liveActivity === 'tool_running' && liveActivityDetail) {
     label = `Running ${liveActivityDetail}`;
   }
 
-  const color = ACTIVITY_COLORS[liveActivity];
+  const color = STATUS_COLORS[liveActivity];
 
   const parts: string[] = [formatElapsed(elapsed)];
   if (turnOutputTokens > 0) {
@@ -74,6 +81,12 @@ export default function LiveStatusBar() {
   if (thinkingTotal >= 1000) {
     parts.push(`thought for ${formatElapsed(thinkingTotal)}`);
   }
+
+  const fontSize = compact ? 10 : 12;
+  const iconSize = compact ? 11 : 14;
+  const padding = compact ? '4px 12px' : '6px 16px';
+  const gap = compact ? 6 : 8;
+  const glowSize = compact ? '8px' : '12px';
 
   return (
     <div style={{
@@ -84,19 +97,19 @@ export default function LiveStatusBar() {
       zIndex: 10,
       display: 'flex',
       alignItems: 'center',
-      gap: 8,
-      padding: '6px 16px',
+      gap,
+      padding,
       background: 'rgba(10, 10, 15, 0.9)',
       border: `1px solid ${color}40`,
       borderRadius: 8,
       backdropFilter: 'blur(8px)',
-      boxShadow: `0 0 12px ${color}20`,
+      boxShadow: `0 0 ${glowSize} ${color}20`,
       fontFamily: 'var(--font-mono, monospace)',
-      fontSize: 12,
+      fontSize,
       whiteSpace: 'nowrap',
       animation: 'indicator-pulse 2.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite',
     }}>
-      <span style={{ color, fontSize: 14 }}>{'\u2726'}</span>
+      <span style={{ color, fontSize: iconSize }}>{'\u2726'}</span>
       <span style={{ color, fontWeight: 600 }}>
         {label}{'\u2026'}
       </span>

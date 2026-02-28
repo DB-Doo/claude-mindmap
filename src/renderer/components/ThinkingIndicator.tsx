@@ -1,12 +1,12 @@
-import { useSessionStore, LiveActivity } from '../store/session-store';
+import { useSessionStore, type LiveActivity } from '../store/session-store';
 
 const ACTIVITY_CONFIG: Record<LiveActivity, { label: string; icon: string; color: string }> = {
-  idle: { label: 'Active', icon: '🟢', color: '#475569' },
-  thinking: { label: 'Thinking', icon: '🧠', color: '#a855f7' },
-  tool_running: { label: 'Running tool', icon: '⚡', color: '#ff6b35' },
-  responding: { label: 'Responding', icon: '💬', color: '#00d4ff' },
-  waiting_on_user: { label: 'Waiting on you', icon: '⏳', color: '#34d399' },
-  compacting: { label: 'Compacting', icon: '📋', color: '#fbbf24' },
+  idle: { label: 'Active', icon: '\uD83D\uDFE2', color: '#475569' },
+  thinking: { label: 'Thinking', icon: '\uD83E\uDDE0', color: '#a855f7' },
+  tool_running: { label: 'Running tool', icon: '\u26A1', color: '#ff6b35' },
+  responding: { label: 'Responding', icon: '\uD83D\uDCAC', color: '#00d4ff' },
+  waiting_on_user: { label: 'Waiting on you', icon: '\u23F3', color: '#34d399' },
+  compacting: { label: 'Compacting', icon: '\uD83D\uDCCB', color: '#fbbf24' },
 };
 
 function buildLabel(activity: LiveActivity, detail?: string): string {
@@ -138,19 +138,19 @@ function ActivityBanner({
 
 export default function ThinkingIndicator() {
   const backgroundActivities = useSessionStore((s) => s.backgroundActivities);
-  const activeSessionPath = useSessionStore((s) => s.activeSessionPath);
-  const liveActivity = useSessionStore((s) => s.liveActivity);
-  const liveActivityDetail = useSessionStore((s) => s.liveActivityDetail);
+  const primarySessionPath = useSessionStore((s) => s.panes.primary.sessionPath);
+  const primaryActivity = useSessionStore((s) => s.panes.primary.liveActivity);
+  const primaryDetail = useSessionStore((s) => s.panes.primary.liveActivityDetail);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const requestCenter = useSessionStore((s) => s.requestCenter);
+  const toggleAutoFollow = useSessionStore((s) => s.toggleAutoFollow);
   const splitMode = useSessionStore((s) => s.splitMode);
-  const setSecondarySession = useSessionStore((s) => s.setSecondarySession);
 
   const entries = Array.from(backgroundActivities.entries())
     .map(([filePath, { activity, detail, sessionName }]) => {
-      const isCurrent = filePath === activeSessionPath;
-      const resolvedActivity = isCurrent ? liveActivity : activity;
-      const resolvedDetail = isCurrent ? liveActivityDetail : detail;
+      const isCurrent = filePath === primarySessionPath;
+      const resolvedActivity = isCurrent ? primaryActivity : activity;
+      const resolvedDetail = isCurrent ? primaryDetail : detail;
       return {
         filePath,
         activity: resolvedActivity,
@@ -190,10 +190,17 @@ export default function ThinkingIndicator() {
           sessionName={entry.sessionName}
           isCurrent={entry.isCurrent}
           onClick={entry.isCurrent
-            ? () => { useSessionStore.setState({ autoFollow: true }); requestCenter(); }
+            ? () => {
+                const state = useSessionStore.getState();
+                if (!state.panes.primary.autoFollow) {
+                  toggleAutoFollow('primary');
+                } else {
+                  requestCenter('primary');
+                }
+              }
             : splitMode
-              ? () => { setSecondarySession(entry.filePath); }
-              : () => { useSessionStore.setState({ centerOnLoad: true }); setActiveSession(entry.filePath); }}
+              ? () => { setActiveSession('secondary', entry.filePath); }
+              : () => { setActiveSession('primary', entry.filePath, { centerOnLoad: true }); }}
         />
       ))}
     </div>

@@ -59,22 +59,24 @@ function findLastAssistantText(messages: any[]): string | null {
   return null;
 }
 
-// Module-level counter so only the latest request wins,
+// Module-level counters so only the latest request wins,
 // even across StrictMode double-invocations.
-let requestGeneration = 0;
+let primaryRequestGen = 0;
+let secondaryRequestGen = 0;
 
 export function useSessionWatcher(): void {
   const setSessions = useSessionStore((s) => s.setSessions);
   const setMessages = useSessionStore((s) => s.setMessages);
   const appendMessages = useSessionStore((s) => s.appendMessages);
-  const activeSessionPath = useSessionStore((s) => s.activeSessionPath);
+  const primarySessionPath = useSessionStore((s) => s.panes.primary.sessionPath);
+  const secondarySessionPath = useSessionStore((s) => s.panes.secondary.sessionPath);
   const sessions = useSessionStore((s) => s.sessions);
   const setBackgroundActivities = useSessionStore((s) => s.setBackgroundActivities);
 
   const appendRef = useRef(appendMessages);
   appendRef.current = appendMessages;
 
-  // Batched append: buffer incoming messages, flush after 100ms idle
+  // Primary pane: batched append
   const pendingRef = useRef<JSONLMessage[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -83,7 +85,20 @@ export function useSessionWatcher(): void {
     if (pendingRef.current.length > 0) {
       const batch = pendingRef.current;
       pendingRef.current = [];
-      appendRef.current(batch);
+      appendRef.current('primary', batch);
+    }
+  }, []);
+
+  // Secondary pane: batched append
+  const secondaryPendingRef = useRef<JSONLMessage[]>([]);
+  const secondaryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushSecondaryPending = useCallback(() => {
+    secondaryTimerRef.current = null;
+    if (secondaryPendingRef.current.length > 0) {
+      const batch = secondaryPendingRef.current;
+      secondaryPendingRef.current = [];
+      appendRef.current('secondary', batch);
     }
   }, []);
 
@@ -115,17 +130,9 @@ export function useSessionWatcher(): void {
     };
   }, [flushPending]);
 
-  // When activeSessionPath changes: load the full session.
-  //
-  // IMPORTANT: No stopWatching() in the cleanup! The main process
-  // watch-session handler already stops any previous watcher before
-  // creating a new one. Calling stopWatching here caused a race
-  // condition with React StrictMode (which double-fires effects):
-  //   mount1: watchSession → cleanup: stopWatching → mount2: watchSession
-  // The stopWatching between the two watchSession calls could interfere
-  // with the second watcher's setup. Removing it eliminates the race.
+  // When primarySessionPath changes: load the full session.
   useEffect(() => {
-    if (!activeSessionPath) return;
+    if (!primarySessionPath) return;
 
     // Clear any pending batched messages from previous session
     pendingRef.current = [];
@@ -134,30 +141,71 @@ export function useSessionWatcher(): void {
       timerRef.current = null;
     }
 
-    const gen = ++requestGeneration;
+    const gen = ++primaryRequestGen;
 
-    window.api.watchSession(activeSessionPath)
+    window.api.watchSession(primarySessionPath)
       .then((messages) => {
-        if (gen !== requestGeneration) return; // stale
+        if (gen !== primaryRequestGen) return;
 
         if (messages.length > 0) {
-          setMessages(messages);
+          setMessages('primary', messages);
         } else {
-          // File might have been briefly locked (Windows) or unreadable.
-          // Retry once after a short delay.
           setTimeout(() => {
-            if (gen !== requestGeneration) return; // stale after delay
-            window.api.watchSession(activeSessionPath)
+            if (gen !== primaryRequestGen) return;
+            window.api.watchSession(primarySessionPath)
               .then((retryMessages) => {
-                if (gen !== requestGeneration) return;
-                setMessages(retryMessages);
+                if (gen !== primaryRequestGen) return;
+                setMessages('primary', retryMessages);
               })
               .catch(() => {});
           }, 500);
         }
       })
       .catch(() => {});
-  }, [activeSessionPath, setMessages]);
+  }, [primarySessionPath, setMessages]);
+
+  // Register the secondary-messages listener once for incremental updates.
+  useEffect(() => {
+    const unsub = window.api.onSecondaryNewMessages((msgs) => {
+      secondaryPendingRef.current.push(...msgs);
+      if (secondaryTimerRef.current) clearTimeout(secondaryTimerRef.current);
+      secondaryTimerRef.current = setTimeout(flushSecondaryPending, 100);
+    });
+    return () => {
+      unsub();
+      if (secondaryTimerRef.current) {
+        clearTimeout(secondaryTimerRef.current);
+        flushSecondaryPending();
+      }
+    };
+  }, [flushSecondaryPending]);
+
+  // When secondarySessionPath changes: load the full session.
+  useEffect(() => {
+    if (!secondarySessionPath) {
+      window.api.stopSecondaryWatching();
+      return;
+    }
+
+    secondaryPendingRef.current = [];
+    if (secondaryTimerRef.current) {
+      clearTimeout(secondaryTimerRef.current);
+      secondaryTimerRef.current = null;
+    }
+
+    const gen = ++secondaryRequestGen;
+
+    window.api.watchSecondarySession(secondarySessionPath)
+      .then((messages) => {
+        if (gen !== secondaryRequestGen) return;
+        setMessages('secondary', messages);
+      })
+      .catch(() => {});
+
+    return () => {
+      window.api.stopSecondaryWatching();
+    };
+  }, [secondarySessionPath, setMessages]);
 
   // Poll background sessions for activity every 3 seconds
   useEffect(() => {
@@ -174,17 +222,18 @@ export function useSessionWatcher(): void {
       window.api.peekSessionActivity(activePaths).then((results) => {
         const map = new Map<string, { activity: any; detail?: string; sessionName: string; lastReply?: string }>();
         const storeState = useSessionStore.getState();
+        const currentPath = storeState.panes.primary.sessionPath;
         for (const r of results) {
-          const isCurrent = r.filePath === storeState.activeSessionPath;
+          const isCurrent = r.filePath === currentPath;
           // For current session, use full rawMessages (always complete).
           // For background sessions, use lastUserPrompt from main process
           // (scans up to 512KB to handle image-heavy messages).
-          const msgs = isCurrent && storeState.rawMessages.length > 0
-            ? storeState.rawMessages
+          const msgs = isCurrent && storeState.panes.primary.rawMessages.length > 0
+            ? storeState.panes.primary.rawMessages
             : r.tailMessages;
           const { activity, detail } = detectActivity(r.tailMessages, true, r.fileMtime);
           const lastPrompt = isCurrent
-            ? findLastUserPrompt(storeState.rawMessages)
+            ? findLastUserPrompt(storeState.panes.primary.rawMessages)
             : r.lastUserPrompt;
           const lastReply = findLastAssistantText(msgs);
           const session = sessions.find((s) => s.filePath === r.filePath);
@@ -198,5 +247,5 @@ export function useSessionWatcher(): void {
     poll();
     const interval = setInterval(poll, 3000);
     return () => clearInterval(interval);
-  }, [sessions, activeSessionPath, setBackgroundActivities]);
+  }, [sessions, primarySessionPath, setBackgroundActivities]);
 }

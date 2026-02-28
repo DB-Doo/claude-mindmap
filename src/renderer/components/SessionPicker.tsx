@@ -255,11 +255,10 @@ function PastSessionItem({
 
 export default function SessionPicker() {
   const sessions = useSessionStore((s) => s.sessions);
-  const activeSessionPath = useSessionStore((s) => s.activeSessionPath);
+  const primarySessionPath = useSessionStore((s) => s.panes.primary.sessionPath);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const splitMode = useSessionStore((s) => s.splitMode);
-  const secondarySessionPath = useSessionStore((s) => s.secondarySessionPath);
-  const setSecondarySession = useSessionStore((s) => s.setSecondarySession);
+  const secondarySessionPath = useSessionStore((s) => s.panes.secondary.sessionPath);
 
   const [collapsedBuckets, setCollapsedBuckets] = useState<Set<DateBucket>>(() =>
     new Set<DateBucket>(['thisMonth', 'older']),
@@ -324,9 +323,9 @@ export default function SessionPicker() {
               <ActiveSessionCard
                 key={session.sessionId}
                 session={session}
-                isViewing={session.filePath === activeSessionPath}
-                onClick={() => setActiveSession(session.filePath)}
-                onSplitClick={splitMode ? () => setSecondarySession(session.filePath) : undefined}
+                isViewing={session.filePath === primarySessionPath}
+                onClick={() => setActiveSession('primary', session.filePath)}
+                onSplitClick={splitMode ? () => setActiveSession('secondary', session.filePath) : undefined}
                 isInSplit={session.filePath === secondarySessionPath}
               />
             ))}
@@ -353,9 +352,9 @@ export default function SessionPicker() {
                 <PastSessionItem
                   key={session.sessionId}
                   session={session}
-                  isViewing={session.filePath === activeSessionPath}
-                  onClick={() => setActiveSession(session.filePath)}
-                  onSplitClick={splitMode ? () => setSecondarySession(session.filePath) : undefined}
+                  isViewing={session.filePath === primarySessionPath}
+                  onClick={() => setActiveSession('primary', session.filePath)}
+                  onSplitClick={splitMode ? () => setActiveSession('secondary', session.filePath) : undefined}
                   isInSplit={session.filePath === secondarySessionPath}
                 />
               ))}

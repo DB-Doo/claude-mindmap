@@ -14,8 +14,9 @@ function ThinkingNode({ data, id }: NodeProps) {
 
   // Derived boolean selector — only re-renders when the result changes
   const isActive = useSessionStore((s) => {
-    if (s.liveActivity !== 'thinking' || s.nodes.length === 0) return false;
-    const last = s.nodes[s.nodes.length - 1];
+    const pane = s.panes[s.focusedPane];
+    if (pane.liveActivity !== 'thinking' || pane.nodes.length === 0) return false;
+    const last = pane.nodes[pane.nodes.length - 1];
     return last?.kind === 'thinking' && last?.id === id;
   });
 

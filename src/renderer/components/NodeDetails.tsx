@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { useSessionStore } from '../store/session-store';
+import { useSessionStore, useFocusedPane } from '../store/session-store';
 import { TOOL_COLORS } from '../../shared/types';
 
 const panelStyle: CSSProperties = {
@@ -78,28 +78,30 @@ export default function NodeDetails() {
 
   // Derived selector: only re-renders when the selected node's content changes
   const node = useSessionStore(s => {
-    if (!s.selectedNodeId) return null;
-    return s.nodes.find(n => n.id === s.selectedNodeId) ?? null;
+    const pane = s.panes[s.focusedPane];
+    if (!pane.selectedNodeId) return null;
+    return pane.nodes.find(n => n.id === pane.selectedNodeId) ?? null;
   });
 
   // Get the assistant reply for user nodes by traversing the edge chain
   // (user → thinking → text → tool_use → ...) until the next user node.
   const replyDetail = useSessionStore(s => {
-    if (!s.selectedNodeId) return null;
-    const selectedNode = s.nodes.find(n => n.id === s.selectedNodeId);
+    const pane = s.panes[s.focusedPane];
+    if (!pane.selectedNodeId) return null;
+    const selectedNode = pane.nodes.find(n => n.id === pane.selectedNodeId);
     if (!selectedNode || selectedNode.kind !== 'user') return null;
 
     // Build adjacency map once
     const childMap = new Map<string, string[]>();
-    for (const e of s.edges) {
+    for (const e of pane.edges) {
       const list = childMap.get(e.source);
       if (list) list.push(e.target);
       else childMap.set(e.source, [e.target]);
     }
 
-    const nodeMap = new Map(s.nodes.map(n => [n.id, n]));
+    const nodeMap = new Map(pane.nodes.map(n => [n.id, n]));
     const textDetails: string[] = [];
-    const queue = [s.selectedNodeId];
+    const queue = [pane.selectedNodeId];
     const visited = new Set<string>();
 
     while (queue.length > 0) {
@@ -109,7 +111,7 @@ export default function NodeDetails() {
       const n = nodeMap.get(id);
       if (!n) continue;
       // Stop at the next user node (don't traverse into the next column)
-      if (n.kind === 'user' && id !== s.selectedNodeId) continue;
+      if (n.kind === 'user' && id !== pane.selectedNodeId) continue;
       if (n.kind === 'text') textDetails.push(n.detail);
       const children = childMap.get(id);
       if (children) for (const child of children) queue.push(child);
