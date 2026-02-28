@@ -381,7 +381,7 @@ export function detectActivity(messages: JSONLMessage[], isKnownActive = false):
 const MAX_USER_TURNS_ACTIVE = 10;
 const MAX_USER_TURNS_PAST = 20;
 /** How many recent user turns to keep expanded in active sessions. */
-const ACTIVE_EXPAND_TURNS = 5;
+const ACTIVE_EXPAND_TURNS = 2;
 
 /**
  * Trim messages to only include the last `maxTurns` user messages

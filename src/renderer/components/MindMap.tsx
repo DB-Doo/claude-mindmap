@@ -348,7 +348,7 @@ export default function MindMap() {
             width: 28,
             height: 28,
             cursor: 'nw-resize',
-            zIndex: 5,
+            zIndex: 20,
             borderRadius: '6px 0 0 0',
           }}
         >
