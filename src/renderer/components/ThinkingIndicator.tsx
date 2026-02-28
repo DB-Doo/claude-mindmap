@@ -22,6 +22,7 @@ function ActivityBanner({
   activity,
   detail,
   sessionName,
+  lastReply,
   isBackground,
   onClick,
 }: {
@@ -29,6 +30,7 @@ function ActivityBanner({
   activity: LiveActivity;
   detail?: string;
   sessionName?: string;
+  lastReply?: string;
   isBackground?: boolean;
   onClick?: () => void;
 }) {
@@ -37,7 +39,7 @@ function ActivityBanner({
 
   // Current session: just show the activity. Background: prefix with session name.
   const label = isBackground
-    ? `${sessionName} — ${activityLabel}`
+    ? `${sessionName} \u2014 ${activityLabel}`
     : activityLabel;
 
   return (
@@ -45,12 +47,13 @@ function ActivityBanner({
       onClick={onClick}
       style={{
         display: 'flex',
-        alignItems: 'center',
-        gap: isBackground ? 8 : 10,
+        flexDirection: isBackground && lastReply ? 'column' : 'row',
+        alignItems: isBackground && lastReply ? 'flex-start' : 'center',
+        gap: isBackground && lastReply ? 4 : (isBackground ? 8 : 10),
         padding: isBackground ? '5px 14px' : '8px 20px',
         background: isBackground ? 'rgba(10, 10, 15, 0.75)' : 'rgba(10, 10, 15, 0.9)',
         border: `1px solid ${config.color}`,
-        borderRadius: 20,
+        borderRadius: isBackground && lastReply ? 12 : 20,
         boxShadow: isIdle ? 'none' : `0 0 15px ${config.color}40, 0 0 30px ${config.color}20`,
         backdropFilter: 'blur(8px)',
         animation: isIdle ? undefined : 'indicator-pulse 2s ease-in-out infinite',
@@ -59,49 +62,65 @@ function ActivityBanner({
         transition: 'opacity 0.2s, transform 0.2s',
       }}
     >
-      {isBackground && (
+      <div style={{ display: 'flex', alignItems: 'center', gap: isBackground ? 8 : 10 }}>
+        {isBackground && (
+          <span style={{
+            fontSize: 8,
+            color: '#64748b',
+            fontFamily: 'var(--font-mono, monospace)',
+            fontWeight: 500,
+            letterSpacing: '0.5px',
+            textTransform: 'uppercase',
+          }}>
+            {'\u2197'}
+          </span>
+        )}
         <span style={{
-          fontSize: 8,
-          color: '#64748b',
-          fontFamily: 'var(--font-mono, monospace)',
-          fontWeight: 500,
-          letterSpacing: '0.5px',
-          textTransform: 'uppercase',
+          fontSize: isBackground ? 14 : 18,
+          animation: activity === 'thinking' ? 'indicator-bounce 1s ease-in-out infinite' : undefined,
         }}>
-          ↗
+          {config.icon}
         </span>
-      )}
-      <span style={{
-        fontSize: isBackground ? 14 : 18,
-        animation: activity === 'thinking' ? 'indicator-bounce 1s ease-in-out infinite' : undefined,
-      }}>
-        {config.icon}
-      </span>
-      <span style={{
-        fontSize: isBackground ? 10 : 12,
-        fontFamily: 'var(--font-mono, monospace)',
-        color: config.color,
-        fontWeight: 600,
-        letterSpacing: '0.5px',
-        maxWidth: isBackground ? 240 : undefined,
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-      }}>
-        {label}
-      </span>
-      {!isIdle && (
-        <span style={{ display: 'flex', gap: 3 }}>
-          {[0, 1, 2].map((i) => (
-            <span key={i} style={{
-              width: isBackground ? 3 : 4,
-              height: isBackground ? 3 : 4,
-              borderRadius: '50%',
-              backgroundColor: config.color,
-              animation: `indicator-dot 1.4s ease-in-out ${i * 0.2}s infinite`,
-            }} />
-          ))}
+        <span style={{
+          fontSize: isBackground ? 10 : 12,
+          fontFamily: 'var(--font-mono, monospace)',
+          color: config.color,
+          fontWeight: 600,
+          letterSpacing: '0.5px',
+          maxWidth: isBackground ? 340 : undefined,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}>
+          {label}
         </span>
+        {!isIdle && (
+          <span style={{ display: 'flex', gap: 3 }}>
+            {[0, 1, 2].map((i) => (
+              <span key={i} style={{
+                width: isBackground ? 3 : 4,
+                height: isBackground ? 3 : 4,
+                borderRadius: '50%',
+                backgroundColor: config.color,
+                animation: `indicator-dot 1.4s ease-in-out ${i * 0.2}s infinite`,
+              }} />
+            ))}
+          </span>
+        )}
+      </div>
+      {isBackground && lastReply && (
+        <div style={{
+          fontSize: 9,
+          fontFamily: 'var(--font-mono, monospace)',
+          color: '#64748b',
+          maxWidth: 340,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          paddingLeft: 22,
+        }}>
+          {'\u2192'} {lastReply}
+        </div>
       )}
     </div>
   );
@@ -116,7 +135,7 @@ export default function ThinkingIndicator() {
   const requestCenter = useSessionStore((s) => s.requestCenter);
 
   const entries = Array.from(backgroundActivities.entries())
-    .map(([filePath, { activity, detail, sessionName }]) => {
+    .map(([filePath, { activity, detail, sessionName, lastReply }]) => {
       // For the current session, use real-time liveActivity (updated on every
       // message append) instead of the polled value (3s interval, 5-msg tail).
       const isCurrent = filePath === activeSessionPath;
@@ -127,6 +146,7 @@ export default function ThinkingIndicator() {
         activity: resolvedActivity,
         detail: resolvedDetail,
         sessionName,
+        lastReply,
         config: ACTIVITY_CONFIG[resolvedActivity],
         isCurrent,
       };
@@ -156,6 +176,7 @@ export default function ThinkingIndicator() {
           activity={entry.activity}
           detail={entry.detail}
           sessionName={entry.sessionName}
+          lastReply={entry.lastReply}
           isBackground={!entry.isCurrent}
           onClick={entry.isCurrent
             ? () => requestCenter()

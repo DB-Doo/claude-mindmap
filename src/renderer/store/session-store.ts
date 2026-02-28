@@ -60,7 +60,7 @@ interface SessionState {
   collapsedNodes: Set<string>;
   searchQuery: string;
   tokenStats: TokenStats;
-  backgroundActivities: Map<string, { activity: LiveActivity; detail?: string; sessionName: string }>;
+  backgroundActivities: Map<string, { activity: LiveActivity; detail?: string; sessionName: string; lastReply?: string }>;
   isWindowed: boolean;
   totalMessageCount: number;
   _filterRevision: number;
@@ -89,7 +89,7 @@ interface SessionState {
   setIdle: () => void;
   toggleCollapse: (nodeId: string) => void;
   setSearchQuery: (query: string) => void;
-  setBackgroundActivities: (map: Map<string, { activity: LiveActivity; detail?: string; sessionName: string }>) => void;
+  setBackgroundActivities: (map: Map<string, { activity: LiveActivity; detail?: string; sessionName: string; lastReply?: string }>) => void;
   loadFullSession: () => void;
   navigateUserMessage: (direction: 'prev' | 'next') => void;
   clearCenterOnNode: () => void;

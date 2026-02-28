@@ -14,6 +14,48 @@ declare global {
   }
 }
 
+/** Extract the last real user prompt from a list of messages. */
+function findLastUserPrompt(messages: any[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.type !== 'user') continue;
+    const content = msg.message?.content;
+    if (content == null) continue;
+    if (typeof content === 'string') {
+      const trimmed = content.trimStart();
+      if (trimmed.startsWith('<task-notification>') || trimmed.startsWith('<system-reminder>')) continue;
+      return content.length > 80 ? content.slice(0, 77) + '\u2026' : content;
+    }
+    if (Array.isArray(content)) {
+      const hasOnlyToolResults = content.length > 0 && content.every((b: any) => b.type === 'tool_result');
+      if (hasOnlyToolResults) continue;
+      const textParts = content.filter((b: any) => b.type === 'text' && b.text?.trim()).map((b: any) => b.text);
+      if (textParts.length === 0) continue;
+      const text = textParts.join(' ');
+      return text.length > 80 ? text.slice(0, 77) + '\u2026' : text;
+    }
+  }
+  return null;
+}
+
+/** Extract the latest assistant text snippet from a list of messages. */
+function findLastAssistantText(messages: any[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.type !== 'assistant') continue;
+    const content = msg.message?.content;
+    if (!Array.isArray(content)) continue;
+    // Walk content blocks in reverse to find the latest text
+    for (let j = content.length - 1; j >= 0; j--) {
+      if (content[j].type === 'text' && content[j].text?.trim()) {
+        const text = content[j].text.trim();
+        return text.length > 60 ? text.slice(0, 57) + '\u2026' : text;
+      }
+    }
+  }
+  return null;
+}
+
 // Module-level counter so only the latest request wins,
 // even across StrictMode double-invocations.
 let requestGeneration = 0;
@@ -127,12 +169,15 @@ export function useSessionWatcher(): void {
       }
 
       window.api.peekSessionActivity(activePaths).then((results) => {
-        const map = new Map<string, { activity: any; detail?: string; sessionName: string }>();
+        const map = new Map<string, { activity: any; detail?: string; sessionName: string; lastReply?: string }>();
         for (const r of results) {
           const { activity, detail } = detectActivity(r.tailMessages);
+          // Show the latest user prompt in the banner (not the session title)
+          const lastPrompt = findLastUserPrompt(r.tailMessages);
+          const lastReply = findLastAssistantText(r.tailMessages);
           const session = sessions.find((s) => s.filePath === r.filePath);
-          const name = session?.displayText || session?.sessionId || 'Session';
-          map.set(r.filePath, { activity, detail, sessionName: name });
+          const fallback = session?.displayText || session?.sessionId || 'Session';
+          map.set(r.filePath, { activity, detail, sessionName: lastPrompt || fallback, lastReply: lastReply || undefined });
         }
         setBackgroundActivities(map);
       }).catch(() => {});
