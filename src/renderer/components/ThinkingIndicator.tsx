@@ -188,7 +188,7 @@ export default function ThinkingIndicator() {
           sessionName={entry.sessionName}
           isCurrent={entry.isCurrent}
           onClick={entry.isCurrent
-            ? () => requestCenter()
+            ? () => { useSessionStore.setState({ autoFollow: true }); requestCenter(); }
             : () => { useSessionStore.setState({ centerOnLoad: true }); setActiveSession(entry.filePath); }}
         />
       ))}

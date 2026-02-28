@@ -173,7 +173,7 @@ export default function MindMap() {
       beginProgrammaticMove();
       userPanned.current = false;
       setTimeout(() => {
-        setCenter(x, y, { duration: 400, zoom: 1 });
+        setCenter(x, y, { duration: 400, zoom: 1.2 });
         endProgrammaticMoveAfter(500);
       }, 100);
     }
