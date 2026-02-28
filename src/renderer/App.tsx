@@ -1,7 +1,7 @@
 import { ReactFlowProvider } from '@xyflow/react';
 import MindMap from './components/MindMap';
 import SessionPicker from './components/SessionPicker';
-import Toolbar from './components/Toolbar';
+import Toolbar, { PaneToolbar } from './components/Toolbar';
 import ThinkingIndicator from './components/ThinkingIndicator';
 import LiveStatusBar from './components/LiveStatusBar';
 import SecondaryPane from './components/SecondaryPane';
@@ -30,15 +30,19 @@ export default function App() {
           <ReactFlowProvider>
             <div style={{
               flex: 1,
-              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
               minWidth: 0,
               outline: primaryFocused ? '2px solid #a855f740' : 'none',
               outlineOffset: -2,
               transition: 'outline-color 0.2s',
             }}>
-              <MindMap />
-              <ThinkingIndicator />
-              <LiveStatusBar paneId="primary" />
+              {splitMode && <PaneToolbar paneId="primary" />}
+              <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+                <MindMap />
+                <ThinkingIndicator />
+                <LiveStatusBar paneId="primary" />
+              </div>
             </div>
           </ReactFlowProvider>
           {/* Secondary pane (split mode only) */}
@@ -48,12 +52,16 @@ export default function App() {
               <div style={{
                 flex: 1,
                 display: 'flex',
+                flexDirection: 'column',
                 minWidth: 0,
                 outline: secondaryFocused ? '2px solid #a855f740' : 'none',
                 outlineOffset: -2,
                 transition: 'outline-color 0.2s',
               }}>
-                <SecondaryPane />
+                <PaneToolbar paneId="secondary" />
+                <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+                  <SecondaryPane />
+                </div>
               </div>
             </>
           )}

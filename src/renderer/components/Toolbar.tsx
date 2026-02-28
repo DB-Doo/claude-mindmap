@@ -1,5 +1,5 @@
-import { useCallback, useState, useRef, useEffect, type CSSProperties, type ChangeEvent } from 'react';
-import { useSessionStore, useFocusedPane } from '../store/session-store';
+import { useCallback, useState, useRef, useEffect, type CSSProperties, type ChangeEvent, Fragment } from 'react';
+import { useSessionStore, usePane, type PaneId } from '../store/session-store';
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
@@ -7,8 +7,8 @@ function formatTokens(n: number): string {
   return String(n);
 }
 
-const toolbarStyle: CSSProperties = {
-  height: 40,
+const rowStyle: CSSProperties = {
+  height: 36,
   display: 'flex',
   alignItems: 'center',
   gap: 8,
@@ -56,7 +56,7 @@ const searchStyle: CSSProperties = {
   borderRadius: 4,
   fontSize: 11,
   fontFamily: 'inherit',
-  width: 160,
+  width: 120,
   outline: 'none',
   transition: 'border-color 0.15s',
 };
@@ -77,30 +77,23 @@ const costStyle: CSSProperties = {
   fontSize: 11,
 };
 
-export default function Toolbar() {
-  const showThinking = useSessionStore(s => s.showThinking);
-  const showText = useSessionStore(s => s.showText);
-  const showSystem = useSessionStore(s => s.showSystem);
-  const autoFollow = useFocusedPane(p => p.autoFollow);
-  const toggleShowThinking = useSessionStore(s => s.toggleShowThinking);
-  const toggleShowText = useSessionStore(s => s.toggleShowText);
-  const toggleShowSystem = useSessionStore(s => s.toggleShowSystem);
+/* ── Shared per-pane controls (renders as fragment, no wrapper) ── */
+
+function PaneControls({ paneId }: { paneId: PaneId }) {
+  const autoFollow = usePane(paneId, p => p.autoFollow);
+  const nodeCount = usePane(paneId, p => p.nodes.length);
+  const searchQuery = usePane(paneId, p => p.searchQuery);
+  const tokenStats = usePane(paneId, p => p.tokenStats);
+  const isWindowed = usePane(paneId, p => p.isWindowed);
+  const totalMessageCount = usePane(paneId, p => p.totalMessageCount);
+
   const toggleAutoFollow = useSessionStore(s => s.toggleAutoFollow);
   const navigateToFirstUserMessage = useSessionStore(s => s.navigateToFirstUserMessage);
-  const nodeCount = useFocusedPane(p => p.nodes.length);
-  const searchQuery = useFocusedPane(p => p.searchQuery);
-  const setSearchQuery = useSessionStore(s => s.setSearchQuery);
-  const tokenStats = useFocusedPane(p => p.tokenStats);
-  const isWindowed = useFocusedPane(p => p.isWindowed);
-  const totalMessageCount = useFocusedPane(p => p.totalMessageCount);
-  const loadFullSession = useSessionStore(s => s.loadFullSession);
   const navigateUserMessage = useSessionStore(s => s.navigateUserMessage);
   const navigateToLastUserMessage = useSessionStore(s => s.navigateToLastUserMessage);
-  const splitMode = useSessionStore(s => s.splitMode);
-  const toggleSplitMode = useSessionStore(s => s.toggleSplitMode);
-  const focusedPane = useSessionStore(s => s.focusedPane);
+  const setSearchQuery = useSessionStore(s => s.setSearchQuery);
+  const loadFullSession = useSessionStore(s => s.loadFullSession);
 
-  // Debounced search: local state updates instantly, store updates after 200ms
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -112,42 +105,30 @@ export default function Toolbar() {
       const value = e.target.value;
       setLocalSearch(value);
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => setSearchQuery(value), 200);
+      debounceRef.current = setTimeout(() => setSearchQuery(value, paneId), 200);
     },
-    [setSearchQuery],
+    [setSearchQuery, paneId],
   );
 
   return (
-    <div style={toolbarStyle}>
-      <div style={groupStyle}>
-        <button style={showThinking ? activeBtn : btn} onClick={toggleShowThinking}>
-          Thinking
-        </button>
-        <button style={showText ? activeBtn : btn} onClick={toggleShowText}>
-          Text
-        </button>
-        <button style={showSystem ? activeBtn : btn} onClick={toggleShowSystem}>
-          System
-        </button>
-      </div>
-      <div style={dividerStyle} />
-      <button style={autoFollow ? activeBtn : btn} onClick={() => toggleAutoFollow()}>
+    <Fragment>
+      <button style={autoFollow ? activeBtn : btn} onClick={() => toggleAutoFollow(paneId)}>
         Auto-follow
       </button>
       {nodeCount > 0 && (
         <>
-          <button style={btn} onClick={() => navigateToFirstUserMessage()} title="Jump to first user message">
+          <button style={btn} onClick={() => navigateToFirstUserMessage(paneId)} title="Jump to first user message">
             {'\u25C0\u25C0'}
           </button>
           <div style={dividerStyle} />
           <div style={groupStyle}>
-            <button style={btn} onClick={() => navigateUserMessage('prev')} title="Previous user message">
+            <button style={btn} onClick={() => navigateUserMessage('prev', paneId)} title="Previous user message">
               {'\u25C0'}
             </button>
-            <button style={btn} onClick={() => navigateUserMessage('next')} title="Next user message">
+            <button style={btn} onClick={() => navigateUserMessage('next', paneId)} title="Next user message">
               {'\u25B6'}
             </button>
-            <button style={btn} onClick={() => navigateToLastUserMessage()} title="Jump to last user message">
+            <button style={btn} onClick={() => navigateToLastUserMessage(paneId)} title="Jump to last user message">
               {'\u25B6\u25B6'}
             </button>
           </div>
@@ -156,28 +137,13 @@ export default function Toolbar() {
       <div style={dividerStyle} />
       <input
         type="text"
-        placeholder="Search nodes..."
+        placeholder="Search..."
         value={localSearch}
         onChange={onSearchChange}
         style={searchStyle}
         onFocus={(e) => { e.currentTarget.style.borderColor = '#a855f7'; }}
         onBlur={(e) => { e.currentTarget.style.borderColor = '#2a2a3e'; }}
       />
-      <div style={dividerStyle} />
-      {/* Split view toggle */}
-      <button
-        style={splitMode ? activeBtn : btn}
-        onClick={toggleSplitMode}
-        title={splitMode ? 'Close split view' : 'Open split view'}
-      >
-        {'\u29C9'} Split
-      </button>
-      {/* Focused pane indicator in split mode */}
-      {splitMode && (
-        <span style={{ fontSize: 10, color: '#a855f7', fontWeight: 700 }}>
-          {focusedPane === 'primary' ? 'L' : 'R'}
-        </span>
-      )}
       <div style={statsStyle}>
         <span>{nodeCount} nodes</span>
         {isWindowed && (
@@ -189,7 +155,7 @@ export default function Toolbar() {
               fontSize: 10,
               padding: '2px 8px',
             }}
-            onClick={() => loadFullSession()}
+            onClick={() => loadFullSession(paneId)}
             title={`Currently showing last 20 turns. Click to load all ${totalMessageCount} messages.`}
           >
             Load all ({totalMessageCount} msgs)
@@ -206,6 +172,60 @@ export default function Toolbar() {
           </>
         )}
       </div>
+    </Fragment>
+  );
+}
+
+/* ── Global Toolbar: filters + split toggle (+ pane controls in single mode) ── */
+
+export default function Toolbar() {
+  const showThinking = useSessionStore(s => s.showThinking);
+  const showText = useSessionStore(s => s.showText);
+  const showSystem = useSessionStore(s => s.showSystem);
+  const toggleShowThinking = useSessionStore(s => s.toggleShowThinking);
+  const toggleShowText = useSessionStore(s => s.toggleShowText);
+  const toggleShowSystem = useSessionStore(s => s.toggleShowSystem);
+  const splitMode = useSessionStore(s => s.splitMode);
+  const toggleSplitMode = useSessionStore(s => s.toggleSplitMode);
+
+  return (
+    <div style={rowStyle}>
+      <div style={groupStyle}>
+        <button style={showThinking ? activeBtn : btn} onClick={toggleShowThinking}>
+          Thinking
+        </button>
+        <button style={showText ? activeBtn : btn} onClick={toggleShowText}>
+          Text
+        </button>
+        <button style={showSystem ? activeBtn : btn} onClick={toggleShowSystem}>
+          System
+        </button>
+      </div>
+      <div style={dividerStyle} />
+      <button
+        style={splitMode ? activeBtn : btn}
+        onClick={toggleSplitMode}
+        title={splitMode ? 'Close split view' : 'Open split view'}
+      >
+        {'\u29C9'} Split
+      </button>
+      {/* In single-pane mode, per-pane controls sit inline here */}
+      {!splitMode && (
+        <>
+          <div style={dividerStyle} />
+          <PaneControls paneId="primary" />
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ── Per-pane toolbar row (used in split mode, one per pane) ── */
+
+export function PaneToolbar({ paneId }: { paneId: PaneId }) {
+  return (
+    <div style={rowStyle}>
+      <PaneControls paneId={paneId} />
     </div>
   );
 }
