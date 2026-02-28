@@ -11,14 +11,21 @@ const COL_GAP = 120;  // horizontal gap between columns
 const ROW_GAP = 35;   // vertical gap between nodes in a column
 const TOP_MARGIN = 40;
 
+const EXPANDED_CHARS_PER_LINE = 34; // conservative — accounts for code indentation
+const EXPANDED_LINE_HEIGHT = 19;    // 12px * 1.6 line-height
 const EXPANDED_MAX_CONTENT = 500;   // matches CSS max-height on .node-expanded-content
 const EXPANDED_OVERHEAD = 100;      // header + padding + nav buttons
 
 function estimateNodeHeight(node: GraphNode, isExpanded = false): number {
   if (isExpanded) {
-    // Always reserve full max height — content scrolls, and text estimation
-    // is unreliable for code blocks, short lines, etc.
-    return EXPANDED_OVERHEAD + EXPANDED_MAX_CONTENT;
+    const text = node.detail || node.label;
+    let lines = 0;
+    for (const seg of text.split('\n')) {
+      // Each newline is at least one line; long segments wrap
+      lines += Math.max(1, Math.ceil(seg.length / EXPANDED_CHARS_PER_LINE));
+    }
+    const contentHeight = Math.min(lines * EXPANDED_LINE_HEIGHT, EXPANDED_MAX_CONTENT);
+    return EXPANDED_OVERHEAD + contentHeight;
   }
 
   // Last-message nodes show up to 16 lines in a wider box
