@@ -63,6 +63,7 @@ interface SessionState {
   backgroundActivities: Map<string, { activity: LiveActivity; detail?: string; sessionName: string }>;
   isWindowed: boolean;
   totalMessageCount: number;
+  _filterRevision: number;
 
   // Actions
   setSessions: (sessions: SessionInfo[]) => void;
@@ -435,6 +436,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   backgroundActivities: new Map(),
   isWindowed: false,
   totalMessageCount: 0,
+  _filterRevision: 0,
 
   // ── Actions ──────────────────────────────────────────────────────────
 
@@ -596,26 +598,29 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   setLayoutDirection: (dir) => set({ layoutDirection: dir }),
 
-  // Filter toggles use filterOnly — skips buildGraph entirely
+  // Filter toggles use filterOnly — skips buildGraph entirely.
+  // _filterRevision is bumped so useAutoLayout generates fresh edge IDs,
+  // working around a ReactFlow reconciliation bug where removed-then-re-added
+  // edges with the same ID may not render.
   toggleShowThinking: () => {
     const state = get();
     const next = !state.showThinking;
     const { nodes, edges } = filterOnly(state, { showThinking: next });
-    set({ showThinking: next, nodes, edges });
+    set({ showThinking: next, nodes, edges, _filterRevision: state._filterRevision + 1 });
   },
 
   toggleShowText: () => {
     const state = get();
     const next = !state.showText;
     const { nodes, edges } = filterOnly(state, { showText: next });
-    set({ showText: next, nodes, edges });
+    set({ showText: next, nodes, edges, _filterRevision: state._filterRevision + 1 });
   },
 
   toggleShowSystem: () => {
     const state = get();
     const next = !state.showSystem;
     const { nodes, edges } = filterOnly(state, { showSystem: next });
-    set({ showSystem: next, nodes, edges });
+    set({ showSystem: next, nodes, edges, _filterRevision: state._filterRevision + 1 });
   },
 
   toggleAutoFollow: () => {

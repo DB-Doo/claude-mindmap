@@ -45,8 +45,9 @@ export default function MindMap() {
   const newNodeIds = useSessionStore(s => s.newNodeIds);
   const clearNewNodes = useSessionStore(s => s.clearNewNodes);
   const activeSessionPath = useSessionStore(s => s.activeSessionPath);
+  const filterRevision = useSessionStore(s => s._filterRevision);
 
-  const { nodes, edges } = useAutoLayout(graphNodes, graphEdges);
+  const { nodes, edges } = useAutoLayout(graphNodes, graphEdges, filterRevision);
   const { fitView, setCenter, getZoom } = useReactFlow();
   const prevNodeCount = useRef(0);
   const prevSessionPath = useRef<string | null>(null);

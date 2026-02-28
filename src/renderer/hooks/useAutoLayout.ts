@@ -115,6 +115,7 @@ interface CachedPosition { x: number; y: number }
 export function useAutoLayout(
   graphNodes: GraphNode[],
   graphEdges: GraphEdge[],
+  filterRevision: number = 0,
 ): { nodes: Node[]; edges: Edge[] } {
   const posCache = useRef<Map<string, CachedPosition>>(new Map());
 
@@ -223,11 +224,13 @@ export function useAutoLayout(
       };
     }) satisfies Node[];
 
-    // Build edges
+    // Build edges — include filterRevision in IDs so ReactFlow treats
+    // edges as new after filter toggles (works around stale edge rendering).
     const nodeById = new Map(graphNodes.map((n) => [n.id, n]));
     const totalEdges = graphEdges.length;
+    const revSuffix = filterRevision > 0 ? `#${filterRevision}` : '';
     const edges: Edge[] = graphEdges.map((ge) => ({
-      id: ge.id,
+      id: ge.id + revSuffix,
       source: ge.source,
       target: ge.target,
       type: 'neonEdge',
@@ -238,5 +241,5 @@ export function useAutoLayout(
     }));
 
     return { nodes, edges };
-  }, [graphNodes, graphEdges]);
+  }, [graphNodes, graphEdges, filterRevision]);
 }
