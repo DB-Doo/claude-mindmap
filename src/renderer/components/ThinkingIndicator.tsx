@@ -36,51 +36,59 @@ function ActivityBanner({
 
   const borderColor = isCurrent ? config.color : `${config.color}50`;
 
+  // Current session: larger, more prominent banner
+  const fontSize = isCurrent ? 13 : 11;
+  const padding = isCurrent ? '10px 16px' : '7px 12px';
+  const maxW = isCurrent ? 520 : 380;
+
   return (
     <div
       onClick={onClick}
       style={{
         display: 'flex',
         alignItems: 'stretch',
-        background: 'rgba(10, 10, 15, 0.95)',
-        border: `1.5px solid ${borderColor}`,
-        borderRadius: 8,
+        background: isCurrent ? 'rgba(10, 10, 18, 0.97)' : 'rgba(10, 10, 15, 0.95)',
+        border: isCurrent ? `2px solid ${config.color}` : `1.5px solid ${borderColor}`,
+        borderRadius: isCurrent ? 10 : 8,
         boxShadow: isCurrent
-          ? `0 0 14px ${config.color}50, 0 0 28px ${config.color}25, 0 4px 12px rgba(0,0,0,0.5)`
+          ? `0 0 20px ${config.color}60, 0 0 40px ${config.color}30, 0 6px 16px rgba(0,0,0,0.6)`
           : `0 0 8px ${config.color}30, 0 4px 12px rgba(0,0,0,0.4)`,
         backdropFilter: 'blur(12px)',
         cursor: 'pointer',
         transition: 'opacity 0.2s, transform 0.2s',
-        opacity: isCurrent ? 1 : 0.85,
+        opacity: isCurrent ? 1 : 0.75,
         overflow: 'hidden',
-        maxWidth: 420,
+        maxWidth: maxW,
       }}
     >
-      {/* Left: "VIEWING" tag for current session, or session prompt */}
+      {/* Left: VIEWING label for current session, or session prompt */}
       <div style={{
-        padding: '7px 12px',
-        fontSize: 11,
+        padding,
+        fontSize,
         fontFamily: 'var(--font-mono, monospace)',
-        color: isCurrent ? '#f1f5f9' : '#cbd5e1',
-        maxWidth: 240,
+        color: isCurrent ? '#f1f5f9' : '#94a3b8',
+        maxWidth: isCurrent ? 320 : 200,
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
         display: 'flex',
         alignItems: 'center',
-        gap: 6,
+        gap: 8,
         borderRight: `1px solid ${borderColor}40`,
       }}>
         {isCurrent && (
           <span style={{
-            fontSize: 8,
+            fontSize: 9,
             fontWeight: 700,
-            letterSpacing: '1px',
-            color: config.color,
+            letterSpacing: '1.5px',
+            color: '#f1f5f9',
             textTransform: 'uppercase',
             flexShrink: 0,
+            background: `${config.color}30`,
+            padding: '2px 6px',
+            borderRadius: 4,
           }}>
-            {'\u25C9'}
+            VIEWING
           </span>
         )}
         {sessionName || 'Session'}
@@ -89,33 +97,33 @@ function ActivityBanner({
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 6,
-        padding: '7px 12px',
-        background: `${config.color}0a`,
+        gap: 8,
+        padding,
+        background: isCurrent ? `${config.color}15` : `${config.color}0a`,
       }}>
         <span style={{
-          fontSize: 13,
+          fontSize: isCurrent ? 16 : 13,
           animation: activity === 'thinking' ? 'indicator-bounce 1s ease-in-out infinite' : undefined,
           lineHeight: 1,
         }}>
           {config.icon}
         </span>
         <span style={{
-          fontSize: 11,
+          fontSize,
           fontFamily: 'var(--font-mono, monospace)',
           color: config.color,
-          fontWeight: 600,
+          fontWeight: 700,
           letterSpacing: '0.5px',
           whiteSpace: 'nowrap',
         }}>
           {activityLabel}
         </span>
         {!isIdle && activity !== 'waiting_on_user' && (
-          <span style={{ display: 'flex', gap: 2 }}>
+          <span style={{ display: 'flex', gap: 3 }}>
             {[0, 1, 2].map((i) => (
               <span key={i} style={{
-                width: 3,
-                height: 3,
+                width: isCurrent ? 4 : 3,
+                height: isCurrent ? 4 : 3,
                 borderRadius: '50%',
                 backgroundColor: config.color,
                 animation: `indicator-dot 1.4s ease-in-out ${i * 0.2}s infinite`,
