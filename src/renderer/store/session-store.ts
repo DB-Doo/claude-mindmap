@@ -571,6 +571,25 @@ function fullRebuild(state: SessionState, messages: JSONLMessage[], maxTurnsOver
     autoCollapsed, state.searchQuery,
   );
 
+  // Mark last message on the FILTERED node set so collapsed/hidden tool nodes
+  // don't leave a stale "Waiting for you" badge on an earlier text node.
+  if (isActive && nodes.length > 0) {
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      const n = nodes[i];
+      if (n.kind === 'text') {
+        n.isLastMessage = true;
+        n.label = n.detail.length > 500 ? n.detail.slice(0, 500) + '\u2026' : n.detail;
+        break;
+      }
+      if (n.kind === 'tool_use' && n.toolName === 'AskUserQuestion') {
+        n.isLastMessage = true;
+        break;
+      }
+      if (n.kind === 'system' || n.kind === 'thinking') continue;
+      break; // tool_use, user, compaction — Claude isn't waiting
+    }
+  }
+
   return { allNodes, allEdges, nodes, edges, isWindowed, totalMessageCount: messages.length, autoCollapsed };
 }
 
@@ -581,7 +600,7 @@ function filterOnly(state: SessionState, overrides: {
   collapsedNodes?: Set<string>;
   searchQuery?: string;
 }) {
-  return applyFilters(
+  const result = applyFilters(
     state._cachedAllNodes,
     state._cachedAllEdges,
     overrides.showThinking ?? state.showThinking,
@@ -590,6 +609,27 @@ function filterOnly(state: SessionState, overrides: {
     overrides.collapsedNodes ?? state.collapsedNodes,
     overrides.searchQuery ?? state.searchQuery,
   );
+
+  // Re-mark isLastMessage on filtered set
+  const activeSession = state.sessions.find(s => s.filePath === state.activeSessionPath);
+  if (activeSession?.endReason === 'active' && result.nodes.length > 0) {
+    for (let i = result.nodes.length - 1; i >= 0; i--) {
+      const n = result.nodes[i];
+      if (n.kind === 'text') {
+        n.isLastMessage = true;
+        n.label = n.detail.length > 500 ? n.detail.slice(0, 500) + '\u2026' : n.detail;
+        break;
+      }
+      if (n.kind === 'tool_use' && n.toolName === 'AskUserQuestion') {
+        n.isLastMessage = true;
+        break;
+      }
+      if (n.kind === 'system' || n.kind === 'thinking') continue;
+      break;
+    }
+  }
+
+  return result;
 }
 
 const EMPTY_STATS: TokenStats = { inputTokens: 0, outputTokens: 0, cacheRead: 0, cacheCreation: 0, estimatedCost: 0 };

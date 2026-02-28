@@ -550,32 +550,8 @@ export function buildGraph(
     flushTurn();
   }
 
-  // ---- Mark last message for active sessions ----
-  // Find the last text or AskUserQuestion node and flag it so the renderer
-  // can show an expanded preview matching what the terminal displays.
-  // Only marks a node if it's truly the final substantive node (Claude is
-  // waiting for the user). Skips system/thinking nodes but stops at any
-  // tool_use (means Claude is still working) or user node.
-  if (endReason === 'active' && nodes.length > 0) {
-    for (let i = nodes.length - 1; i >= 0; i--) {
-      const n = nodes[i];
-      if (n.kind === 'text') {
-        n.isLastMessage = true;
-        // Show more content than the default 80-char label
-        n.label = truncate(n.detail, 500);
-        break;
-      }
-      if (n.kind === 'tool_use' && n.toolName === 'AskUserQuestion') {
-        n.isLastMessage = true;
-        break;
-      }
-      // Skip system and thinking nodes — they don't indicate Claude is working
-      if (n.kind === 'system' || n.kind === 'thinking') continue;
-      // Any other node kind (tool_use, user, compaction) means Claude isn't
-      // waiting for user input — don't mark anything
-      break;
-    }
-  }
+  // NOTE: isLastMessage marking moved to fullRebuild (after filtering)
+  // so it operates on the final visible node set, not the full unfiltered set.
 
   // ---- Synthetic session-end node ----
   if (endReason && endReason !== 'active' && nodes.length > 0) {

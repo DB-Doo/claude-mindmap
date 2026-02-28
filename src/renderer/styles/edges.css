@@ -8,8 +8,9 @@
 .react-flow__edge-path {
   stroke-opacity: 0.6;
   transition:
-    stroke-opacity var(--transition-normal),
-    stroke-width var(--transition-normal);
+    stroke-opacity 0.4s var(--ease-fluid),
+    stroke-width 0.3s var(--ease-fluid),
+    d 0.3s var(--ease-fluid);
 }
 
 .react-flow__edge:hover .react-flow__edge-path {
@@ -24,7 +25,7 @@
   opacity: 0.4;
   stroke-linecap: round;
   pointer-events: none;
-  transition: opacity var(--transition-normal);
+  transition: opacity 0.4s var(--ease-fluid), d 0.3s var(--ease-fluid);
 }
 
 .react-flow__edge:hover .neon-edge-glow {
@@ -38,7 +39,7 @@
   opacity: 0.8;
   stroke-linecap: round;
   fill: none;
-  transition: opacity var(--transition-normal);
+  transition: opacity 0.4s var(--ease-fluid), d 0.3s var(--ease-fluid);
 }
 
 .react-flow__edge:hover .neon-edge-line {
