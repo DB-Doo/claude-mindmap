@@ -170,11 +170,17 @@ export function useSessionWatcher(): void {
 
       window.api.peekSessionActivity(activePaths).then((results) => {
         const map = new Map<string, { activity: any; detail?: string; sessionName: string; lastReply?: string }>();
+        // For the current session, use the full rawMessages from the store
+        // (the 4KB tail peek often misses user messages)
+        const storeState = useSessionStore.getState();
         for (const r of results) {
+          const isCurrent = r.filePath === storeState.activeSessionPath;
+          const msgs = isCurrent && storeState.rawMessages.length > 0
+            ? storeState.rawMessages
+            : r.tailMessages;
           const { activity, detail } = detectActivity(r.tailMessages);
-          // Show the latest user prompt in the banner (not the session title)
-          const lastPrompt = findLastUserPrompt(r.tailMessages);
-          const lastReply = findLastAssistantText(r.tailMessages);
+          const lastPrompt = findLastUserPrompt(msgs);
+          const lastReply = findLastAssistantText(msgs);
           const session = sessions.find((s) => s.filePath === r.filePath);
           const fallback = session?.displayText || session?.sessionId || 'Session';
           map.set(r.filePath, { activity, detail, sessionName: lastPrompt || fallback, lastReply: lastReply || undefined });

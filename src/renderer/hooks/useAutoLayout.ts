@@ -11,9 +11,17 @@ const COL_GAP = 120;  // horizontal gap between columns
 const ROW_GAP = 35;   // vertical gap between nodes in a column
 const TOP_MARGIN = 40;
 
-function estimateNodeHeight(label: string): number {
-  const lines = Math.min(Math.ceil(label.length / CHARS_PER_LINE), MAX_LINES);
-  return BASE_HEIGHT + lines * LINE_HEIGHT;
+function estimateNodeHeight(node: GraphNode): number {
+  const lines = Math.min(Math.ceil(node.label.length / CHARS_PER_LINE), MAX_LINES);
+  let height = BASE_HEIGHT + lines * LINE_HEIGHT;
+  // User nodes have extra content: reply-to snippet + token tally
+  if (node.kind === 'user') {
+    if (node.replyToSnippet) height += 24;
+    if (node.turnInputTokens || node.turnOutputTokens) height += 4;
+  }
+  // First-response text nodes have larger text
+  if (node.isFirstResponse) height += 12;
+  return height;
 }
 
 function nodeTypeFromKind(kind: GraphNode['kind']): string {
@@ -98,7 +106,7 @@ function conversationLayout(
     let y = TOP_MARGIN;
     for (const node of column) {
       positions.set(node.id, { x, y });
-      y += estimateNodeHeight(node.label) + ROW_GAP;
+      y += estimateNodeHeight(node) + ROW_GAP;
     }
     x += NODE_WIDTH + COL_GAP;
   }
@@ -182,7 +190,7 @@ export function useAutoLayout(
       for (const [id, pos] of cache.entries()) {
         if (pos.x === maxX && pos.y === maxYAtMaxX) {
           const gn = nodeMap.get(id);
-          if (gn) bottomHeight = estimateNodeHeight(gn.label);
+          if (gn) bottomHeight = estimateNodeHeight(gn);
           break;
         }
       }
@@ -199,7 +207,7 @@ export function useAutoLayout(
           currentY = TOP_MARGIN;
         }
         cache.set(gn.id, { x: currentX, y: currentY });
-        currentY += estimateNodeHeight(gn.label) + ROW_GAP;
+        currentY += estimateNodeHeight(gn) + ROW_GAP;
       }
     }
 
@@ -219,7 +227,7 @@ export function useAutoLayout(
         type: nodeTypeFromKind(gn.kind),
         position: { x: pos.x, y: pos.y },
         width: NODE_WIDTH,
-        height: estimateNodeHeight(gn.label),
+        height: estimateNodeHeight(gn),
         data: gn as unknown as Record<string, unknown>,
       };
     }) satisfies Node[];

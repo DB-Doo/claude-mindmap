@@ -77,30 +77,18 @@ const costStyle: CSSProperties = {
   fontSize: 11,
 };
 
-const recenterBtn: CSSProperties = {
-  ...btn,
-  color: '#34d399',
-};
 
-const recenterAlertBtn: CSSProperties = {
-  ...btn,
-  color: '#34d399',
-  borderColor: '#34d399',
-  backgroundColor: 'rgba(52, 211, 153, 0.1)',
-};
 
 export default function Toolbar() {
   const showThinking = useSessionStore(s => s.showThinking);
   const showText = useSessionStore(s => s.showText);
   const showSystem = useSessionStore(s => s.showSystem);
   const autoFollow = useSessionStore(s => s.autoFollow);
-  const hasNewNodes = useSessionStore(s => s.hasNewNodesSinceManualPan);
   const toggleShowThinking = useSessionStore(s => s.toggleShowThinking);
   const toggleShowText = useSessionStore(s => s.toggleShowText);
   const toggleShowSystem = useSessionStore(s => s.toggleShowSystem);
   const toggleAutoFollow = useSessionStore(s => s.toggleAutoFollow);
-  const requestCenter = useSessionStore(s => s.requestCenter);
-  const requestCenterStart = useSessionStore(s => s.requestCenterStart);
+  const navigateToFirstUserMessage = useSessionStore(s => s.navigateToFirstUserMessage);
   const nodeCount = useSessionStore(s => s.nodes.length);
   const searchQuery = useSessionStore(s => s.searchQuery);
   const setSearchQuery = useSessionStore(s => s.setSearchQuery);
@@ -109,6 +97,7 @@ export default function Toolbar() {
   const totalMessageCount = useSessionStore(s => s.totalMessageCount);
   const loadFullSession = useSessionStore(s => s.loadFullSession);
   const navigateUserMessage = useSessionStore(s => s.navigateUserMessage);
+  const navigateToLastUserMessage = useSessionStore(s => s.navigateToLastUserMessage);
 
   // Debounced search: local state updates instantly, store updates after 200ms
   const [localSearch, setLocalSearch] = useState(searchQuery);
@@ -146,14 +135,8 @@ export default function Toolbar() {
       </button>
       {nodeCount > 0 && (
         <>
-          <button style={recenterBtn} onClick={requestCenterStart}>
-            Start
-          </button>
-          <button
-            style={hasNewNodes ? recenterAlertBtn : recenterBtn}
-            onClick={requestCenter}
-          >
-            Recenter{hasNewNodes ? ' *' : ''}
+          <button style={btn} onClick={navigateToFirstUserMessage} title="Jump to first user message">
+            {'\u25C0\u25C0'}
           </button>
           <div style={dividerStyle} />
           <div style={groupStyle}>
@@ -162,6 +145,9 @@ export default function Toolbar() {
             </button>
             <button style={btn} onClick={() => navigateUserMessage('next')} title="Next user message">
               {'\u25B6'}
+            </button>
+            <button style={btn} onClick={navigateToLastUserMessage} title="Jump to last user message">
+              {'\u25B6\u25B6'}
             </button>
           </div>
         </>

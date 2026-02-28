@@ -81,7 +81,7 @@ ipcMain.handle('peek-session-activity', async (_event, filePaths: string[]) => {
     try {
       const stat = fs.statSync(fp);
       if (stat.size === 0) return { filePath: fp, tailMessages: [] };
-      const readSize = Math.min(4096, stat.size);
+      const readSize = Math.min(32768, stat.size);
       const buf = Buffer.alloc(readSize);
       const fd = fs.openSync(fp, 'r');
       fs.readSync(fd, buf, 0, readSize, stat.size - readSize);
@@ -89,7 +89,7 @@ ipcMain.handle('peek-session-activity', async (_event, filePaths: string[]) => {
       const text = buf.toString('utf8');
       const lines = text.split('\n').filter((l) => l.trim());
       const messages: any[] = [];
-      for (let i = lines.length - 1; i >= 0 && messages.length < 5; i--) {
+      for (let i = lines.length - 1; i >= 0 && messages.length < 20; i--) {
         try {
           messages.unshift(JSON.parse(lines[i]));
         } catch {

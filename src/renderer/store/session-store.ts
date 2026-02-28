@@ -92,6 +92,8 @@ interface SessionState {
   setBackgroundActivities: (map: Map<string, { activity: LiveActivity; detail?: string; sessionName: string; lastReply?: string }>) => void;
   loadFullSession: () => void;
   navigateUserMessage: (direction: 'prev' | 'next') => void;
+  navigateToFirstUserMessage: () => void;
+  navigateToLastUserMessage: () => void;
   clearCenterOnNode: () => void;
 }
 
@@ -818,7 +820,22 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       targetIdx = currentIdx > 0 ? currentIdx - 1 : 0;
     }
 
-    set({ centerOnNodeId: userNodes[targetIdx].id, selectedNodeId: userNodes[targetIdx].id });
+    set({ centerOnNodeId: userNodes[targetIdx].id, selectedNodeId: userNodes[targetIdx].id, autoFollow: false });
+  },
+
+  navigateToFirstUserMessage: () => {
+    const state = get();
+    const userNodes = state.nodes.filter((n) => n.kind === 'user');
+    if (userNodes.length === 0) return;
+    set({ centerOnNodeId: userNodes[0].id, selectedNodeId: userNodes[0].id, autoFollow: false });
+  },
+
+  navigateToLastUserMessage: () => {
+    const state = get();
+    const userNodes = state.nodes.filter((n) => n.kind === 'user');
+    if (userNodes.length === 0) return;
+    const last = userNodes[userNodes.length - 1];
+    set({ centerOnNodeId: last.id, selectedNodeId: last.id, autoFollow: false });
   },
 
   clearCenterOnNode: () => set({ centerOnNodeId: null }),

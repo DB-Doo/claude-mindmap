@@ -80,6 +80,10 @@ export default function MindMap() {
     // event is a real event for user interaction (mouse, touch, wheel)
     if (event && !isProgrammaticMove.current) {
       userPanned.current = true;
+      // Gray out the Auto-follow button when user manually pans
+      if (useSessionStore.getState().autoFollow) {
+        useSessionStore.setState({ autoFollow: false });
+      }
     }
   }, []);
 
@@ -203,8 +207,8 @@ export default function MindMap() {
       const y = (target.position.y as number) + (nodeHeight as number) / 2;
       beginProgrammaticMove();
       userPanned.current = false;
-      setCenter(x, y, { duration: 300, zoom: 1 });
-      endProgrammaticMoveAfter(400);
+      setCenter(x, y, { duration: 400, zoom: 1.2 });
+      endProgrammaticMoveAfter(500);
     }
     clearCenterOnNode();
   }, [centerOnNodeId, nodes, setCenter, clearCenterOnNode, beginProgrammaticMove, endProgrammaticMoveAfter]);
