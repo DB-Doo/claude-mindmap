@@ -44,7 +44,6 @@ export interface PaneState {
   centerStartRequested: boolean;
   centerOnLoad: boolean;
   centerOnNodeId: string | null;
-  centerOnNodeBottom: boolean;
   hasNewNodesSinceManualPan: boolean;
   newNodeIds: Set<string>;
   collapsedNodes: Set<string>;
@@ -483,7 +482,6 @@ function createEmptyPaneState(): PaneState {
     centerStartRequested: false,
     centerOnLoad: false,
     centerOnNodeId: null,
-    centerOnNodeBottom: false,
     hasNewNodesSinceManualPan: false,
     newNodeIds: new Set<string>(),
     collapsedNodes: new Set<string>(),
@@ -945,7 +943,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         expandedNodeId: target.id,
         selectedNodeId: target.id,
         centerOnNodeId: target.id,
-        centerOnNodeBottom: true,
       }));
     }
   },
@@ -981,7 +978,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       const target = column[nextIdxInCol];
       if (!target || target.id === currentId) return;
       if (isExpanded) {
-        set(updatePaneState(state, pid, { expandedNodeId: target.id, selectedNodeId: target.id, centerOnNodeId: target.id, centerOnNodeBottom: true }));
+        set(updatePaneState(state, pid, { expandedNodeId: target.id, selectedNodeId: target.id, centerOnNodeId: target.id }));
       } else {
         set(updatePaneState(state, pid, { selectedNodeId: target.id, centerOnNodeId: target.id }));
       }
@@ -1004,7 +1001,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       const target = nextColumn[targetIdxInCol];
       if (!target) return;
       if (isExpanded) {
-        set(updatePaneState(state, pid, { expandedNodeId: target.id, selectedNodeId: target.id, centerOnNodeId: target.id, centerOnNodeBottom: true }));
+        set(updatePaneState(state, pid, { expandedNodeId: target.id, selectedNodeId: target.id, centerOnNodeId: target.id }));
       } else {
         set(updatePaneState(state, pid, { selectedNodeId: target.id, centerOnNodeId: target.id }));
       }
@@ -1033,7 +1030,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   clearCenterOnNode: (paneId?) => {
     const state = get();
     const pid = paneId ?? state.focusedPane;
-    set(updatePaneState(state, pid, { centerOnNodeId: null, centerOnNodeBottom: false }));
+    set(updatePaneState(state, pid, { centerOnNodeId: null }));
   },
 
   // ── Split View ──────────────────────────────────────────────────────

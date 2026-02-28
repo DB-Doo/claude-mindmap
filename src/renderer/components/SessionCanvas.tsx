@@ -199,7 +199,6 @@ function SessionCanvasInner({ paneId }: { paneId: PaneId }) {
 
   // Navigate to a specific node by ID (arrow navigation)
   const centerOnNodeId = usePane(paneId, p => p.centerOnNodeId);
-  const centerOnNodeBottom = usePane(paneId, p => p.centerOnNodeBottom);
   const clearCenterOnNode = useSessionStore(s => s.clearCenterOnNode);
   useEffect(() => {
     if (!centerOnNodeId || nodes.length === 0) return;
@@ -208,16 +207,14 @@ function SessionCanvasInner({ paneId }: { paneId: PaneId }) {
       const nodeWidth = target.measured?.width ?? target.width ?? 200;
       const nodeHeight = target.measured?.height ?? target.height ?? 80;
       const x = (target.position.x as number) + (nodeWidth as number) / 2;
-      const y = centerOnNodeBottom
-        ? (target.position.y as number) + (nodeHeight as number)
-        : (target.position.y as number) + (nodeHeight as number) / 2;
+      const y = (target.position.y as number) + (nodeHeight as number) / 2;
       beginProgrammaticMove();
       userPanned.current = false;
       setCenter(x, y, { duration: 200, zoom: 1.2 });
       endProgrammaticMoveAfter(300);
     }
     clearCenterOnNode(paneId);
-  }, [centerOnNodeId, centerOnNodeBottom, nodes, setCenter, clearCenterOnNode, beginProgrammaticMove, endProgrammaticMoveAfter, paneId]);
+  }, [centerOnNodeId, nodes, setCenter, clearCenterOnNode, beginProgrammaticMove, endProgrammaticMoveAfter, paneId]);
 
   // Clear isNew flags after animation
   useEffect(() => {
