@@ -194,12 +194,19 @@ function computeAllDescendantCounts(children: Map<string, string[]>): Map<string
   return cache;
 }
 
-function getDescendantIds(nodeId: string, children: Map<string, string[]>): Set<string> {
+function getDescendantIds(
+  nodeId: string,
+  children: Map<string, string[]>,
+  stopAtUserNodes?: Set<string>,
+): Set<string> {
   const result = new Set<string>();
   const stack = children.get(nodeId) ? [...children.get(nodeId)!] : [];
   while (stack.length > 0) {
     const id = stack.pop()!;
     result.add(id);
+    // Stop traversal at user node boundaries — don't descend into
+    // a user node's children so its response chain stays visible.
+    if (stopAtUserNodes && stopAtUserNodes.has(id)) continue;
     const kids = children.get(id);
     if (kids) stack.push(...kids);
   }
@@ -237,13 +244,14 @@ function applyFilters(
   const descendantCounts = computeAllDescendantCounts(children);
 
   if (collapsedNodes.size > 0) {
-    // Never hide user nodes — they must always remain visible at the top
-    // of each column even when ancestor nodes are collapsed.
+    // Never hide user nodes or their response chains. When collapsing user1,
+    // only hide user1's direct response nodes — stop traversal at the next
+    // user node so user2's response chain stays fully visible.
     const userIds = new Set(filtered.filter(n => n.kind === 'user').map(n => n.id));
     const hiddenIds = new Set<string>();
     for (const collapsedId of collapsedNodes) {
       if (!validIds.has(collapsedId)) continue;
-      for (const descendant of getDescendantIds(collapsedId, children)) {
+      for (const descendant of getDescendantIds(collapsedId, children, userIds)) {
         if (!userIds.has(descendant)) {
           hiddenIds.add(descendant);
         }
