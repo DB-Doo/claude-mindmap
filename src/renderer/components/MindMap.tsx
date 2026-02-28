@@ -205,6 +205,7 @@ export default function MindMap() {
 
   // Navigate to a specific node by ID (arrow navigation)
   const centerOnNodeId = useSessionStore(s => s.centerOnNodeId);
+  const centerOnNodeBottom = useSessionStore(s => s.centerOnNodeBottom);
   const clearCenterOnNode = useSessionStore(s => s.clearCenterOnNode);
   useEffect(() => {
     if (!centerOnNodeId || nodes.length === 0) return;
@@ -213,14 +214,18 @@ export default function MindMap() {
       const nodeWidth = target.measured?.width ?? target.width ?? 200;
       const nodeHeight = target.measured?.height ?? target.height ?? 80;
       const x = (target.position.x as number) + (nodeWidth as number) / 2;
-      const y = (target.position.y as number) + (nodeHeight as number) / 2;
+      // When centerOnNodeBottom is set (expanded node nav), align the bottom of
+      // the node to the viewport center so the nav buttons stay in the same spot.
+      const y = centerOnNodeBottom
+        ? (target.position.y as number) + (nodeHeight as number)
+        : (target.position.y as number) + (nodeHeight as number) / 2;
       beginProgrammaticMove();
       userPanned.current = false;
-      setCenter(x, y, { duration: 400, zoom: 1.2 });
-      endProgrammaticMoveAfter(500);
+      setCenter(x, y, { duration: 300, zoom: 1.2 });
+      endProgrammaticMoveAfter(400);
     }
     clearCenterOnNode();
-  }, [centerOnNodeId, nodes, setCenter, clearCenterOnNode, beginProgrammaticMove, endProgrammaticMoveAfter]);
+  }, [centerOnNodeId, centerOnNodeBottom, nodes, setCenter, clearCenterOnNode, beginProgrammaticMove, endProgrammaticMoveAfter]);
 
   // Clear isNew flags after animation
   useEffect(() => {

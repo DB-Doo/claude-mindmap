@@ -53,6 +53,7 @@ interface SessionState {
   centerStartRequested: boolean;
   centerOnLoad: boolean;
   centerOnNodeId: string | null;
+  centerOnNodeBottom: boolean; // when true, align bottom of node to viewport center
   hasNewNodesSinceManualPan: boolean;
   newNodeIds: Set<string>;
   liveActivity: LiveActivity;
@@ -671,6 +672,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   centerStartRequested: false,
   centerOnLoad: false,
   centerOnNodeId: null,
+  centerOnNodeBottom: false,
   hasNewNodesSinceManualPan: false,
   newNodeIds: new Set<string>(),
   liveActivity: 'idle' as LiveActivity,
@@ -1017,6 +1019,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         expandedNodeId: target.id,
         selectedNodeId: target.id,
         centerOnNodeId: target.id,
+        centerOnNodeBottom: true,
       });
     }
   },
@@ -1036,7 +1039,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set({ centerOnNodeId: last.id, selectedNodeId: last.id, autoFollow: false });
   },
 
-  clearCenterOnNode: () => set({ centerOnNodeId: null }),
+  clearCenterOnNode: () => set({ centerOnNodeId: null, centerOnNodeBottom: false }),
 
   // ── Split View ──────────────────────────────────────────────────────
   toggleSplitMode: () => {
