@@ -94,7 +94,7 @@ export default function LiveStatusBar() {
       fontFamily: 'var(--font-mono, monospace)',
       fontSize: 12,
       whiteSpace: 'nowrap',
-      animation: 'indicator-pulse 2s ease-in-out infinite',
+      animation: 'indicator-pulse 2.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite',
     }}>
       <span style={{ color, fontSize: 14 }}>{'\u2726'}</span>
       <span style={{ color, fontWeight: 600 }}>

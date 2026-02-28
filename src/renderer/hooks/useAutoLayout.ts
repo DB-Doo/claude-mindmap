@@ -11,7 +11,7 @@ const COL_GAP = 120;  // horizontal gap between columns
 const ROW_GAP = 35;   // vertical gap between nodes in a column
 const TOP_MARGIN = 40;
 
-const EXPANDED_CHARS_PER_LINE = 70; // wider expanded node (~600px)
+const EXPANDED_CHARS_PER_LINE = 40; // expanded node stays at 340px width
 const EXPANDED_LINE_HEIGHT = 19;    // 12px * 1.6 line-height
 const EXPANDED_MAX_CONTENT = 500;   // matches CSS max-height on .node-expanded-content
 const EXPANDED_OVERHEAD = 60;       // header + padding
@@ -260,7 +260,7 @@ export function useAutoLayout(
         id: gn.id,
         type: nodeTypeFromKind(gn.kind),
         position: { x: pos.x, y: pos.y },
-        width: expanded ? 600 : gn.isLastMessage ? 420 : NODE_WIDTH,
+        width: gn.isLastMessage ? 420 : NODE_WIDTH,
         height: estimateNodeHeight(gn, expanded),
         data: gn as unknown as Record<string, unknown>,
       };

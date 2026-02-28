@@ -55,7 +55,7 @@ function ActivityBanner({
           : `0 0 8px ${config.color}30, 0 4px 12px rgba(0,0,0,0.4)`,
         backdropFilter: 'blur(12px)',
         cursor: 'pointer',
-        transition: 'opacity 0.2s, transform 0.2s',
+        transition: 'opacity 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
         opacity: isCurrent ? 1 : 0.75,
         overflow: 'hidden',
         maxWidth: maxW,
@@ -103,7 +103,7 @@ function ActivityBanner({
       }}>
         <span style={{
           fontSize: isCurrent ? 16 : 13,
-          animation: activity === 'thinking' ? 'indicator-bounce 1s ease-in-out infinite' : undefined,
+          animation: activity === 'thinking' ? 'indicator-bounce 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite' : undefined,
           lineHeight: 1,
         }}>
           {config.icon}
@@ -126,7 +126,7 @@ function ActivityBanner({
                 height: isCurrent ? 4 : 3,
                 borderRadius: '50%',
                 backgroundColor: config.color,
-                animation: `indicator-dot 1.4s ease-in-out ${i * 0.2}s infinite`,
+                animation: `indicator-dot 1.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${i * 0.25}s infinite`,
               }} />
             ))}
           </span>

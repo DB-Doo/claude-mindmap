@@ -40,9 +40,9 @@ function TextNode({ data, id }: NodeProps) {
   if (needsAnimation) {
     return (
       <motion.div
-        initial={gn.isNew ? { scale: 0, opacity: 0 } : false}
-        animate={{ scale: 1, opacity: dimmed ? 0.3 : 1 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+        initial={gn.isNew ? { scale: 0.85, opacity: 0, y: 15 } : false}
+        animate={{ scale: 1, opacity: dimmed ? 0.3 : 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 260, damping: 18, mass: 0.8 }}
         className={className}
         style={style}
       >

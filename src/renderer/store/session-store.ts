@@ -286,6 +286,22 @@ function applyFilters(
     filteredEdges = filteredEdges.filter(
       (e) => validIds.has(e.source) && validIds.has(e.target),
     );
+
+    // Add bridge edges between consecutive user nodes whose response chains are hidden.
+    // This keeps the visual connection line between collapsed columns.
+    const userNodes = filtered.filter(n => n.kind === 'user');
+    const edgeTargets = new Set(filteredEdges.map(e => e.target));
+    for (let i = 0; i < userNodes.length - 1; i++) {
+      const nextUser = userNodes[i + 1];
+      // If the next user node has no incoming edge in the filtered graph, bridge it
+      if (!edgeTargets.has(nextUser.id)) {
+        filteredEdges.push({
+          id: `bridge-${userNodes[i].id}-${nextUser.id}`,
+          source: userNodes[i].id,
+          target: nextUser.id,
+        });
+      }
+    }
   } else {
     filtered = filtered.map((node) => ({
       ...node,
