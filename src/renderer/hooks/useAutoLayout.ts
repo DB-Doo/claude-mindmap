@@ -14,7 +14,7 @@ const TOP_MARGIN = 40;
 const EXPANDED_CHARS_PER_LINE = 40; // expanded node stays at 340px width
 const EXPANDED_LINE_HEIGHT = 19;    // 12px * 1.6 line-height
 const EXPANDED_MAX_CONTENT = 500;   // matches CSS max-height on .node-expanded-content
-const EXPANDED_OVERHEAD = 60;       // header + padding
+const EXPANDED_OVERHEAD = 100;      // header + padding + nav buttons
 
 function estimateNodeHeight(node: GraphNode, isExpanded = false): number {
   if (isExpanded) {
