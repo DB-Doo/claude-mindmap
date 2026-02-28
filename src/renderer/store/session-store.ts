@@ -65,6 +65,12 @@ interface SessionState {
   totalMessageCount: number;
   _filterRevision: number;
 
+  // Turn tracking (for live status bar)
+  turnStartTime: number;
+  turnOutputTokens: number;
+  turnThinkingMs: number;
+  _thinkingStartedAt: number | null;
+
   // Actions
   setSessions: (sessions: SessionInfo[]) => void;
   setActiveSession: (path: string) => void;
@@ -371,6 +377,78 @@ function windowMessages(messages: JSONLMessage[], maxTurns: number): JSONLMessag
 }
 
 // ---------------------------------------------------------------------------
+// Turn data — per-turn stats for the live status bar
+// ---------------------------------------------------------------------------
+
+function computeTurnData(messages: JSONLMessage[]): { turnStartTime: number; turnOutputTokens: number } {
+  let turnStartTime = 0;
+  let turnOutputTokens = 0;
+
+  // Find last "real" user message (not tool_result-only, not system-injected)
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.type !== 'user') continue;
+    const content = (msg as any).message?.content;
+    if (content == null) continue;
+    if (typeof content === 'string') {
+      const trimmed = content.trimStart();
+      if (trimmed.startsWith('<task-notification>') || trimmed.startsWith('<system-reminder>')) continue;
+    } else if (Array.isArray(content)) {
+      const hasOnlyToolResults = content.length > 0 && content.every((b: any) => b.type === 'tool_result');
+      if (hasOnlyToolResults) continue;
+      const hasText = content.some((b: any) => b.type === 'text' && b.text?.trim());
+      if (!hasText) continue;
+    }
+    turnStartTime = new Date(msg.timestamp).getTime();
+
+    // Sum output tokens from assistant messages after this user msg (deduped by message.id)
+    const outputById = new Map<string, number>();
+    for (let j = i + 1; j < messages.length; j++) {
+      if (messages[j].type !== 'assistant') continue;
+      const m = (messages[j] as any).message;
+      const usage = m?.usage;
+      if (!usage) continue;
+      const mid = m?.id || messages[j].uuid;
+      outputById.set(mid, usage.output_tokens || 0);
+    }
+    for (const t of outputById.values()) turnOutputTokens += t;
+    break;
+  }
+
+  return { turnStartTime, turnOutputTokens };
+}
+
+/** Update thinking duration tracking based on activity transitions. */
+function updateThinkingTracking(
+  prevActivity: LiveActivity,
+  newActivity: LiveActivity,
+  prevThinkingMs: number,
+  prevStartedAt: number | null,
+  turnChanged: boolean,
+): { turnThinkingMs: number; _thinkingStartedAt: number | null } {
+  let turnThinkingMs = prevThinkingMs;
+  let _thinkingStartedAt = prevStartedAt;
+
+  // Reset on new turn
+  if (turnChanged) {
+    turnThinkingMs = 0;
+    _thinkingStartedAt = null;
+  }
+
+  // Track transitions
+  if (prevActivity !== 'thinking' && newActivity === 'thinking') {
+    _thinkingStartedAt = Date.now();
+  } else if (prevActivity === 'thinking' && newActivity !== 'thinking') {
+    if (_thinkingStartedAt) {
+      turnThinkingMs += Date.now() - _thinkingStartedAt;
+      _thinkingStartedAt = null;
+    }
+  }
+
+  return { turnThinkingMs, _thinkingStartedAt };
+}
+
+// ---------------------------------------------------------------------------
 // fullRebuild: runs buildGraph + applyFilters. Use when rawMessages change.
 // filterOnly: reuses cached buildGraph output. Use for filter/search/collapse.
 // ---------------------------------------------------------------------------
@@ -453,6 +531,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   totalMessageCount: 0,
   _filterRevision: 0,
 
+  // Turn tracking
+  turnStartTime: 0,
+  turnOutputTokens: 0,
+  turnThinkingMs: 0,
+  _thinkingStartedAt: null,
+
   // ── Actions ──────────────────────────────────────────────────────────
 
   setSessions: (sessions) => set({ sessions }),
@@ -478,6 +562,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       const result = fullRebuild({ ...state, activeSessionPath: path }, cached);
       const { activity, detail } = detectActivity(cached);
       const tokenStats = computeTokenStats(cached);
+      const turnData = computeTurnData(cached);
       set({
         activeSessionPath: path,
         rawMessages: cached,
@@ -498,6 +583,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         centerRequested: false,
         centerStartRequested: false,
         hasNewNodesSinceManualPan: false,
+        turnStartTime: turnData.turnStartTime,
+        turnOutputTokens: turnData.turnOutputTokens,
+        turnThinkingMs: 0,
+        _thinkingStartedAt: activity === 'thinking' ? Date.now() : null,
       });
     } else {
       set({
@@ -517,6 +606,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         centerRequested: false,
         centerStartRequested: false,
         hasNewNodesSinceManualPan: false,
+        turnStartTime: 0,
+        turnOutputTokens: 0,
+        turnThinkingMs: 0,
+        _thinkingStartedAt: null,
       });
     }
   },
@@ -526,6 +619,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const result = fullRebuild(state, messages);
     const { activity, detail } = detectActivity(messages);
     const tokenStats = computeTokenStats(messages);
+    const turnData = computeTurnData(messages);
+    const turnChanged = turnData.turnStartTime !== state.turnStartTime && turnData.turnStartTime > 0;
+    const thinking = updateThinkingTracking(
+      state.liveActivity, activity,
+      state.turnThinkingMs, state._thinkingStartedAt, turnChanged,
+    );
 
     // Keep session cache current
     if (state.activeSessionPath && messages.length > 0) {
@@ -545,6 +644,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       tokenStats,
       isWindowed: result.isWindowed,
       totalMessageCount: result.totalMessageCount,
+      turnStartTime: turnData.turnStartTime,
+      turnOutputTokens: turnData.turnOutputTokens,
+      turnThinkingMs: thinking.turnThinkingMs,
+      _thinkingStartedAt: thinking._thinkingStartedAt,
     });
   },
 
@@ -578,6 +681,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     // Recompute from all messages to stay accurate (dedup handles streaming chunks)
     const tokenStats = computeTokenStats(combined);
 
+    const turnData = computeTurnData(combined);
+    const turnChanged = turnData.turnStartTime !== state.turnStartTime && turnData.turnStartTime > 0;
+    const thinking = updateThinkingTracking(
+      state.liveActivity, activity,
+      state.turnThinkingMs, state._thinkingStartedAt, turnChanged,
+    );
+
     // Keep session cache current
     if (state.activeSessionPath) {
       state._sessionCache.set(state.activeSessionPath, combined);
@@ -599,6 +709,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       hasNewNodesSinceManualPan: newIds.size > 0 && !state.autoFollow
         ? true
         : state.hasNewNodesSinceManualPan,
+      turnStartTime: turnData.turnStartTime,
+      turnOutputTokens: turnData.turnOutputTokens,
+      turnThinkingMs: thinking.turnThinkingMs,
+      _thinkingStartedAt: thinking._thinkingStartedAt,
     });
   },
 

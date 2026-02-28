@@ -4,6 +4,7 @@ import SessionPicker from './components/SessionPicker';
 import Toolbar from './components/Toolbar';
 import NodeDetails from './components/NodeDetails';
 import ThinkingIndicator from './components/ThinkingIndicator';
+import LiveStatusBar from './components/LiveStatusBar';
 import { useSessionWatcher } from './hooks/useSessionWatcher';
 import './styles/globals.css';
 import './styles/nodes.css';
@@ -21,6 +22,7 @@ export default function App() {
           <div style={{ flex: 1, position: 'relative' }}>
             <MindMap />
             <ThinkingIndicator />
+            <LiveStatusBar />
           </div>
         </div>
         <NodeDetails />
