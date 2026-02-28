@@ -478,6 +478,15 @@ function updateThinkingTracking(
 // filterOnly: reuses cached buildGraph output. Use for filter/search/collapse.
 // ---------------------------------------------------------------------------
 
+/** Collect IDs of all user nodes — used to auto-collapse past sessions. */
+function getUserNodeIds(nodes: GraphNode[]): Set<string> {
+  const ids = new Set<string>();
+  for (const n of nodes) {
+    if (n.kind === 'user') ids.add(n.id);
+  }
+  return ids;
+}
+
 function fullRebuild(state: SessionState, messages: JSONLMessage[], maxTurnsOverride?: number) {
   const activeSession = state.sessions.find(s => s.filePath === state.activeSessionPath);
   const endReason: SessionEndReason | undefined = activeSession?.endReason;
@@ -487,12 +496,16 @@ function fullRebuild(state: SessionState, messages: JSONLMessage[], maxTurnsOver
   const windowed = windowMessages(messages, maxTurns);
   const isWindowed = windowed.length < messages.length;
   const { nodes: allNodes, edges: allEdges } = buildGraph(windowed, endReason);
+
+  // Auto-collapse user nodes for past sessions to reduce node count
+  const autoCollapsed = !isActive ? getUserNodeIds(allNodes) : state.collapsedNodes;
+
   const { nodes, edges } = applyFilters(
     allNodes, allEdges,
     state.showThinking, state.showText, state.showSystem,
-    state.collapsedNodes, state.searchQuery,
+    autoCollapsed, state.searchQuery,
   );
-  return { allNodes, allEdges, nodes, edges, isWindowed, totalMessageCount: messages.length };
+  return { allNodes, allEdges, nodes, edges, isWindowed, totalMessageCount: messages.length, autoCollapsed };
 }
 
 function filterOnly(state: SessionState, overrides: {
@@ -600,7 +613,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         selectedNodeId: null,
         expandedNodeId: null,
         newNodeIds: new Set<string>(),
-        collapsedNodes: new Set<string>(),
+        collapsedNodes: result.autoCollapsed,
         searchQuery: '',
         liveActivity: activity,
         liveActivityDetail: detail,
@@ -667,6 +680,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       _cachedAllEdges: result.allEdges,
       nodes: result.nodes,
       edges: result.edges,
+      collapsedNodes: result.autoCollapsed,
       newNodeIds: new Set<string>(),
       liveActivity: activity,
       liveActivityDetail: detail,
@@ -830,6 +844,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       _cachedAllEdges: result.allEdges,
       nodes: result.nodes,
       edges: result.edges,
+      collapsedNodes: result.autoCollapsed,
       isWindowed: false,
       totalMessageCount: result.totalMessageCount,
     });
