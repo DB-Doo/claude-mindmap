@@ -131,9 +131,9 @@ ipcMain.handle('peek-session-activity', async (_event, filePaths: string[]) => {
       }
 
       fs.closeSync(fd);
-      return { filePath: fp, tailMessages: messages, lastUserPrompt };
+      return { filePath: fp, tailMessages: messages, lastUserPrompt, fileMtime: stat.mtimeMs };
     } catch {
-      return { filePath: fp, tailMessages: [], lastUserPrompt: null };
+      return { filePath: fp, tailMessages: [], lastUserPrompt: null, fileMtime: 0 };
     }
   });
 });

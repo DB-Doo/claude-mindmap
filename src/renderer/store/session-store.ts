@@ -312,7 +312,7 @@ function applyFilters(
  * When isKnownActive is true (lock file present), skip the staleness check
  * so long-running tools don't falsely show as idle.
  */
-export function detectActivity(messages: JSONLMessage[], isKnownActive = false): ActivityInfo {
+export function detectActivity(messages: JSONLMessage[], isKnownActive = false, fileMtime = 0): ActivityInfo {
   // If the last message is more than 30 seconds old and we don't know the session
   // is active, assume it's idle
   if (!isKnownActive && messages.length > 0) {
@@ -368,9 +368,11 @@ export function detectActivity(messages: JSONLMessage[], isKnownActive = false):
       // Staleness fallback: if the last message is old and we'd say
       // 'responding' or 'thinking', Claude almost certainly finished and we
       // missed the final signal (streaming chunk timing, watcher delay, etc.)
-      // Use 8s — short enough to catch stale banners, long enough to not
-      // false-positive on mid-turn pauses (text → tool_use transitions).
-      if (lastMessageAge > 8_000) {
+      // BUT skip this if the file was modified recently — that means Claude
+      // is still actively writing even if individual message timestamps are stale.
+      const fileAge = fileMtime > 0 ? Date.now() - fileMtime : Infinity;
+      const fileRecentlyModified = fileAge < 5_000;
+      if (!fileRecentlyModified && lastMessageAge > 8_000) {
         if (last.type === 'thinking' || last.type === 'text') {
           return { activity: 'waiting_on_user' };
         }

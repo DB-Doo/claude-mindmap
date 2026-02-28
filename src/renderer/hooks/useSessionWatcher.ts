@@ -9,7 +9,7 @@ declare global {
       watchSession: (filePath: string) => Promise<any[]>;
       stopWatching: () => Promise<void>;
       onNewMessages: (cb: (messages: any[]) => void) => () => void;
-      peekSessionActivity: (filePaths: string[]) => Promise<{ filePath: string; tailMessages: any[]; lastUserPrompt: string | null }[]>;
+      peekSessionActivity: (filePaths: string[]) => Promise<{ filePath: string; tailMessages: any[]; lastUserPrompt: string | null; fileMtime: number }[]>;
     };
   }
 }
@@ -179,7 +179,7 @@ export function useSessionWatcher(): void {
           const msgs = isCurrent && storeState.rawMessages.length > 0
             ? storeState.rawMessages
             : r.tailMessages;
-          const { activity, detail } = detectActivity(r.tailMessages, true);
+          const { activity, detail } = detectActivity(r.tailMessages, true, r.fileMtime);
           const lastPrompt = isCurrent
             ? findLastUserPrompt(storeState.rawMessages)
             : r.lastUserPrompt;

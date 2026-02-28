@@ -15,7 +15,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('stop-watching'),
 
   /** Peek at the tail of multiple session files to detect background activity */
-  peekSessionActivity: (filePaths: string[]): Promise<{ filePath: string; tailMessages: JSONLMessage[]; lastUserPrompt: string | null }[]> =>
+  peekSessionActivity: (filePaths: string[]): Promise<{ filePath: string; tailMessages: JSONLMessage[]; lastUserPrompt: string | null; fileMtime: number }[]> =>
     ipcRenderer.invoke('peek-session-activity', filePaths),
 
   /** Register a callback for incrementally-appended messages */
