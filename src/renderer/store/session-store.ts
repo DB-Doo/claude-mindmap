@@ -225,7 +225,7 @@ function getDescendantIds(
 // Filter pipeline: visibility toggles → collapse → search decoration
 // ---------------------------------------------------------------------------
 
-function applyFilters(
+export function applyFilters(
   nodes: GraphNode[],
   edges: GraphEdge[],
   showThinking: boolean,
@@ -421,17 +421,17 @@ export function detectActivity(messages: JSONLMessage[], isKnownActive = false, 
 // Message windowing — show only the last N user turns for performance
 // ---------------------------------------------------------------------------
 
-const MAX_USER_TURNS_ACTIVE = 10;
-const MAX_USER_TURNS_PAST = 20;
+export const MAX_USER_TURNS_ACTIVE = 10;
+export const MAX_USER_TURNS_PAST = 20;
 /** How many recent user turns to keep expanded in active sessions. */
-const ACTIVE_EXPAND_TURNS = 2;
+export const ACTIVE_EXPAND_TURNS = 2;
 
 /**
  * Trim messages to only include the last `maxTurns` user messages
  * and everything that follows each (assistant responses, tool calls, etc).
  * Returns the full array if there are fewer than `maxTurns` user messages.
  */
-function windowMessages(messages: JSONLMessage[], maxTurns: number): JSONLMessage[] {
+export function windowMessages(messages: JSONLMessage[], maxTurns: number): JSONLMessage[] {
   if (maxTurns === Infinity) return messages;
 
   // Find indices of "real" user messages (ones that produce visible nodes)
@@ -542,7 +542,7 @@ function updateThinkingTracking(
  * - Active sessions: collapse older user nodes, keeping the last N expanded.
  *   keepExpanded=0 means collapse all (used for past sessions).
  */
-function autoCollapseUserNodes(nodes: GraphNode[], keepExpanded: number): Set<string> {
+export function autoCollapseUserNodes(nodes: GraphNode[], keepExpanded: number): Set<string> {
   const userNodes: string[] = [];
   for (const n of nodes) {
     if (n.kind === 'user') userNodes.push(n.id);

@@ -15,7 +15,17 @@ import SystemNode from '../nodes/SystemNode';
 import CompactionNode from '../nodes/CompactionNode';
 import SessionEndNode from '../nodes/SessionEndNode';
 import NeonEdge from '../edges/NeonEdge';
-import { useSessionStore, detectActivity, type LiveActivity } from '../store/session-store';
+import {
+  useSessionStore,
+  detectActivity,
+  windowMessages,
+  autoCollapseUserNodes,
+  applyFilters,
+  MAX_USER_TURNS_ACTIVE,
+  MAX_USER_TURNS_PAST,
+  ACTIVE_EXPAND_TURNS,
+  type LiveActivity,
+} from '../store/session-store';
 import { buildGraph } from '../store/graph-builder';
 import { useAutoLayout } from '../hooks/useAutoLayout';
 import { TOOL_COLORS, type GraphNode, type GraphEdge } from '../../shared/types';
@@ -342,21 +352,60 @@ function SecondaryCanvas() {
     const gen = ++genRef.current;
     messagesRef.current = [];
 
-    window.api.watchSecondarySession(secondarySessionPath).then((msgs) => {
-      if (gen !== genRef.current) return;
-      messagesRef.current = msgs;
-      setMessages(msgs);
-      const { nodes, edges } = buildGraph(msgs);
+    const processMessages = (msgs: any[], shouldFitView = false) => {
+      const isActive = sessions.some((s) => s.filePath === secondarySessionPath && s.endReason === 'active');
+      const endReason = isActive ? 'active' as const : undefined;
+
+      // Window messages (same as primary pane)
+      const maxTurns = isActive ? MAX_USER_TURNS_ACTIVE : MAX_USER_TURNS_PAST;
+      const windowed = windowMessages(msgs, maxTurns);
+
+      // Build graph from windowed messages
+      const { nodes: allNodes, edges: allEdges } = buildGraph(windowed, endReason);
+
+      // Auto-collapse: active sessions keep last N expanded, past sessions collapse all
+      const collapsed = isActive
+        ? autoCollapseUserNodes(allNodes, ACTIVE_EXPAND_TURNS)
+        : autoCollapseUserNodes(allNodes, 0);
+
+      // Apply filters (show all content types, apply collapse, no search)
+      const { nodes, edges } = applyFilters(allNodes, allEdges, true, true, true, collapsed, '');
+
+      // Mark last message for active sessions (same logic as primary)
+      if (isActive && nodes.length > 0) {
+        for (let i = nodes.length - 1; i >= 0; i--) {
+          const n = nodes[i];
+          if (n.kind === 'text') {
+            n.isLastMessage = true;
+            n.label = n.detail.length > 500 ? n.detail.slice(0, 500) + '\u2026' : n.detail;
+            break;
+          }
+          if (n.kind === 'tool_use' && n.toolName === 'AskUserQuestion') {
+            n.isLastMessage = true;
+            break;
+          }
+          if (n.kind === 'system' || n.kind === 'thinking') continue;
+          break;
+        }
+      }
+
       setGraphNodes(nodes);
       setGraphEdges(edges);
 
-      const isActive = sessions.some((s) => s.filePath === secondarySessionPath && s.endReason === 'active');
       const info = detectActivity(msgs, isActive);
       setActivity(info.activity);
       setActivityDetail(info.detail);
 
-      // Fit view after initial load
-      setTimeout(() => fitView({ duration: 300, padding: 0.15 }), 100);
+      if (shouldFitView) {
+        setTimeout(() => fitView({ duration: 300, padding: 0.15 }), 100);
+      }
+    };
+
+    window.api.watchSecondarySession(secondarySessionPath).then((msgs) => {
+      if (gen !== genRef.current) return;
+      messagesRef.current = msgs;
+      setMessages(msgs);
+      processMessages(msgs, true);
     });
 
     const unsub = window.api.onSecondaryNewMessages((newMsgs) => {
@@ -364,14 +413,7 @@ function SecondaryCanvas() {
       const combined = [...messagesRef.current, ...newMsgs];
       messagesRef.current = combined;
       setMessages(combined);
-      const { nodes, edges } = buildGraph(combined);
-      setGraphNodes(nodes);
-      setGraphEdges(edges);
-
-      const isActive = sessions.some((s) => s.filePath === secondarySessionPath && s.endReason === 'active');
-      const info = detectActivity(combined, isActive);
-      setActivity(info.activity);
-      setActivityDetail(info.detail);
+      processMessages(combined);
     });
 
     return () => {

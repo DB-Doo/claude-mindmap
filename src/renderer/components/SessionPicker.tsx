@@ -33,10 +33,14 @@ function ActiveSessionCard({
   session,
   isViewing,
   onClick,
+  onSplitClick,
+  isInSplit,
 }: {
   session: SessionInfo;
   isViewing: boolean;
   onClick: () => void;
+  onSplitClick?: () => void;
+  isInSplit?: boolean;
 }) {
   const lastPrompt = session.userPrompts?.length
     ? session.userPrompts[session.userPrompts.length - 1]
@@ -72,6 +76,26 @@ function ActiveSessionCard({
             Viewing
           </span>
         )}
+        {onSplitClick && (
+          <span
+            onClick={(e) => { e.stopPropagation(); onSplitClick(); }}
+            title="Open in split pane"
+            style={{
+              fontSize: 10,
+              color: isInSplit ? '#a855f7' : '#475569',
+              cursor: 'pointer',
+              flexShrink: 0,
+              padding: '1px 4px',
+              borderRadius: 3,
+              border: isInSplit ? '1px solid #a855f7' : '1px solid transparent',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#a855f7'; e.currentTarget.style.borderColor = '#a855f740'; }}
+            onMouseLeave={(e) => { if (!isInSplit) { e.currentTarget.style.color = '#475569'; e.currentTarget.style.borderColor = 'transparent'; } }}
+          >
+            {'\u29C9'}
+          </span>
+        )}
       </div>
       <div style={{ fontSize: 11, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: 15 }}>
         {lastPrompt}
@@ -92,10 +116,14 @@ function PastSessionItem({
   session,
   isViewing,
   onClick,
+  onSplitClick,
+  isInSplit,
 }: {
   session: SessionInfo;
   isViewing: boolean;
   onClick: () => void;
+  onSplitClick?: () => void;
+  isInSplit?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PROMPTS_PER_PAGE);
@@ -144,13 +172,32 @@ function PastSessionItem({
           {session.subtitle || prompts[0] || 'Untitled'}
         </span>
       </div>
-      {/* Meta row: time + message count toggle */}
+      {/* Meta row: time + split button + message count toggle */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
         <span style={{ fontSize: 10, color: '#475569' }}>
           {format(new Date(session.timestamp), 'MMM d, HH:mm')}
         </span>
         {session.endReason === 'compacted' && (
           <span style={{ fontSize: 9, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Compacted</span>
+        )}
+        {onSplitClick && (
+          <span
+            onClick={(e) => { e.stopPropagation(); onSplitClick(); }}
+            title="Open in split pane"
+            style={{
+              fontSize: 10,
+              color: isInSplit ? '#a855f7' : '#475569',
+              cursor: 'pointer',
+              padding: '0 3px',
+              borderRadius: 3,
+              border: isInSplit ? '1px solid #a855f7' : '1px solid transparent',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#a855f7'; }}
+            onMouseLeave={(e) => { if (!isInSplit) e.currentTarget.style.color = '#475569'; }}
+          >
+            {'\u29C9'}
+          </span>
         )}
         {promptCount > 1 && (
           <span
@@ -210,6 +257,9 @@ export default function SessionPicker() {
   const sessions = useSessionStore((s) => s.sessions);
   const activeSessionPath = useSessionStore((s) => s.activeSessionPath);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
+  const splitMode = useSessionStore((s) => s.splitMode);
+  const secondarySessionPath = useSessionStore((s) => s.secondarySessionPath);
+  const setSecondarySession = useSessionStore((s) => s.setSecondarySession);
 
   const [collapsedBuckets, setCollapsedBuckets] = useState<Set<DateBucket>>(() =>
     new Set<DateBucket>(['thisMonth', 'older']),
@@ -276,6 +326,8 @@ export default function SessionPicker() {
                 session={session}
                 isViewing={session.filePath === activeSessionPath}
                 onClick={() => setActiveSession(session.filePath)}
+                onSplitClick={splitMode ? () => setSecondarySession(session.filePath) : undefined}
+                isInSplit={session.filePath === secondarySessionPath}
               />
             ))}
             <div style={s.divider} />
@@ -303,6 +355,8 @@ export default function SessionPicker() {
                   session={session}
                   isViewing={session.filePath === activeSessionPath}
                   onClick={() => setActiveSession(session.filePath)}
+                  onSplitClick={splitMode ? () => setSecondarySession(session.filePath) : undefined}
+                  isInSplit={session.filePath === secondarySessionPath}
                 />
               ))}
             </div>
