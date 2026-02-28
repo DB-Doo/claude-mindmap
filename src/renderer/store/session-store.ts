@@ -94,6 +94,7 @@ interface SessionState {
   setBackgroundActivities: (map: Map<string, { activity: LiveActivity; detail?: string; sessionName: string; lastReply?: string }>) => void;
   loadFullSession: () => void;
   navigateUserMessage: (direction: 'prev' | 'next') => void;
+  navigateExpandedNode: (direction: 'prev' | 'next') => void;
   navigateToFirstUserMessage: () => void;
   navigateToLastUserMessage: () => void;
   clearCenterOnNode: () => void;
@@ -973,6 +974,40 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     }
 
     set({ centerOnNodeId: userNodes[targetIdx].id, selectedNodeId: userNodes[targetIdx].id, autoFollow: false });
+  },
+
+  navigateExpandedNode: (direction) => {
+    const state = get();
+    const expandedId = state.expandedNodeId;
+    if (!expandedId) return;
+
+    const nodes = state.nodes;
+    const expandedIdx = nodes.findIndex((n) => n.id === expandedId);
+    if (expandedIdx === -1) return;
+
+    // Build the column: walk backwards to find the column start (user node or index 0),
+    // then forward until the next user node. This matches the layout's column grouping.
+    let colStart = expandedIdx;
+    while (colStart > 0 && nodes[colStart].kind !== 'user') colStart--;
+
+    let colEnd = expandedIdx + 1;
+    while (colEnd < nodes.length && nodes[colEnd].kind !== 'user') colEnd++;
+
+    const column = nodes.slice(colStart, colEnd);
+    const idxInCol = expandedIdx - colStart;
+
+    const nextIdxInCol = direction === 'next'
+      ? Math.min(idxInCol + 1, column.length - 1)
+      : Math.max(idxInCol - 1, 0);
+
+    const target = column[nextIdxInCol];
+    if (target && target.id !== expandedId) {
+      set({
+        expandedNodeId: target.id,
+        selectedNodeId: target.id,
+        centerOnNodeId: target.id,
+      });
+    }
   },
 
   navigateToFirstUserMessage: () => {

@@ -3,6 +3,7 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { motion } from 'framer-motion';
 import type { GraphNode } from '../../shared/types';
 import CollapseButton from './CollapseButton';
+import ExpandNavButtons from './ExpandNavButtons';
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
@@ -43,6 +44,7 @@ function UserNode({ data, id }: NodeProps) {
       )}
       <Handle type="source" position={Position.Bottom} />
       <CollapseButton nodeId={id} childCount={gn.childCount || 0} collapsed={gn.collapsed || false} />
+      {gn.isExpanded && <ExpandNavButtons />}
     </>
   );
 

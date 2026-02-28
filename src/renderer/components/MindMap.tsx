@@ -231,6 +231,7 @@ export default function MindMap() {
   }, [newNodeIds, clearNewNodes]);
 
   const expandNode = useSessionStore(s => s.expandNode);
+  const navigateExpandedNode = useSessionStore(s => s.navigateExpandedNode);
   const onNodeClick = useCallback((_: any, node: Node) => {
     const state = useSessionStore.getState();
     if (state.selectedNodeId === node.id) {
@@ -257,16 +258,23 @@ export default function MindMap() {
     selectNode(null);
   }, [selectNode, expandNode]);
 
-  // Escape key collapses expanded node
+  // Keyboard navigation for expanded nodes: Escape collapses, Arrow keys navigate
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && useSessionStore.getState().expandedNodeId) {
+      if (!useSessionStore.getState().expandedNodeId) return;
+      if (e.key === 'Escape') {
         expandNode(null);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        navigateExpandedNode('prev');
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        navigateExpandedNode('next');
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [expandNode]);
+  }, [expandNode, navigateExpandedNode]);
 
   // Click-to-teleport on minimap: convert SVG click coords → flow coords
   const minimapRef = useRef<HTMLDivElement>(null);

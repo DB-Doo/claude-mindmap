@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import type { GraphNode } from '../../shared/types';
 import { useSessionStore } from '../store/session-store';
 import CollapseButton from './CollapseButton';
+import ExpandNavButtons from './ExpandNavButtons';
 import { formatTokensBadge } from './tokenBadge';
 
 const MAX_LABEL_LENGTH = 120;
@@ -45,6 +46,7 @@ function ThinkingNode({ data, id }: NodeProps) {
       )}
       <Handle type="source" position={Position.Bottom} />
       <CollapseButton nodeId={id} childCount={gn.childCount || 0} collapsed={gn.collapsed || false} />
+      {gn.isExpanded && <ExpandNavButtons />}
     </>
   );
 
