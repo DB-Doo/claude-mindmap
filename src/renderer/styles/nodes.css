@@ -617,6 +617,32 @@
   color: var(--text-secondary);
 }
 
+/* Queue node — amber dashed pending indicator */
+.queue-node {
+  min-width: 160px;
+  max-width: 280px;
+  border-style: dashed;
+  border-color: var(--neon-gold);
+  opacity: 0.75;
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.2);
+  animation: queue-breathe 2.5s ease-in-out infinite;
+}
+
+@keyframes queue-breathe {
+  0%, 100% { opacity: 0.65; box-shadow: 0 0 6px rgba(251, 191, 36, 0.15); }
+  50% { opacity: 0.85; box-shadow: 0 0 14px rgba(251, 191, 36, 0.35); }
+}
+
+.queue-node .node-header {
+  color: var(--neon-gold);
+  font-size: 9px;
+}
+
+.queue-node .node-label {
+  color: var(--neon-gold);
+  font-size: 10px;
+}
+
 /* ============================================================
    Last Message — Enhanced display for active session's final node
    ============================================================ */

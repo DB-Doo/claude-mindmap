@@ -14,6 +14,7 @@ import TextNode from '../nodes/TextNode';
 import SystemNode from '../nodes/SystemNode';
 import CompactionNode from '../nodes/CompactionNode';
 import SessionEndNode from '../nodes/SessionEndNode';
+import QueueNode from '../nodes/QueueNode';
 import NeonEdge from '../edges/NeonEdge';
 import {
   useSessionStore,
@@ -38,6 +39,7 @@ const nodeTypes = {
   systemNode: SystemNode,
   compactionNode: CompactionNode,
   sessionEndNode: SessionEndNode,
+  queueNode: QueueNode,
 };
 
 const edgeTypes = {
@@ -480,6 +482,7 @@ function SecondaryCanvas() {
               if (gn?.kind === 'thinking') return '#a855f7';
               if (gn?.kind === 'text') return '#6b7280';
               if (gn?.kind === 'compaction') return '#fbbf24';
+              if (gn?.kind === 'queue') return '#fbbf24';
               return '#475569';
             }}
           />

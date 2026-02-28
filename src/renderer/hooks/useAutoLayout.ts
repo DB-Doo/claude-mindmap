@@ -64,6 +64,7 @@ function nodeTypeFromKind(kind: GraphNode['kind']): string {
     case 'text': return 'textNode';
     case 'compaction': return 'compactionNode';
     case 'session_end': return 'sessionEndNode';
+    case 'queue': return 'queueNode';
     default: return 'systemNode';
   }
 }

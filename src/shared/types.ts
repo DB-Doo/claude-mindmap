@@ -76,7 +76,7 @@ export type JSONLMessage = UserMessage | AssistantMessage | ProgressMessage | Sy
 // Graph Model
 // ---------------------------------------------------------------------------
 
-export type GraphNodeKind = 'user' | 'thinking' | 'text' | 'tool_use' | 'system' | 'compaction' | 'session_end';
+export type GraphNodeKind = 'user' | 'thinking' | 'text' | 'tool_use' | 'system' | 'compaction' | 'session_end' | 'queue';
 
 export type SessionEndReason = 'active' | 'ended' | 'compacted';
 

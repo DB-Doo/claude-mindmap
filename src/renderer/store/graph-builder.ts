@@ -553,6 +553,44 @@ export function buildGraph(
   // NOTE: isLastMessage marking moved to fullRebuild (after filtering)
   // so it operates on the final visible node set, not the full unfiltered set.
 
+  // ---- Queued messages: show pending queue-operation entries ----
+  {
+    const pending: { content: string; timestamp: string }[] = [];
+    for (const msg of messages) {
+      if ((msg as any).type !== 'queue-operation') continue;
+      const op = (msg as any).operation as string;
+      if (op === 'enqueue' && (msg as any).content) {
+        pending.push({ content: (msg as any).content, timestamp: (msg as any).timestamp || '' });
+      } else if (op === 'remove' || op === 'dequeue') {
+        pending.shift(); // remove oldest
+      } else if (op === 'popAll') {
+        pending.length = 0;
+      }
+    }
+
+    let prevId = nodes.length > 0 ? nodes[nodes.length - 1].id : null;
+    for (let i = 0; i < pending.length; i++) {
+      const qId = `__queue_${i}__`;
+      const content = pending[i].content;
+      nodes.push({
+        id: qId,
+        parentId: prevId,
+        kind: 'queue',
+        toolName: null,
+        label: content.length > 120 ? content.slice(0, 120) + '\u2026' : content,
+        detail: content,
+        status: null,
+        timestamp: pending[i].timestamp,
+        isNew: false,
+        _searchText: ('queued\n' + content).toLowerCase(),
+      });
+      if (prevId) {
+        edges.push({ id: `${prevId}->${qId}`, source: prevId, target: qId });
+      }
+      prevId = qId;
+    }
+  }
+
   // ---- Synthetic session-end node ----
   if (endReason && endReason !== 'active' && nodes.length > 0) {
     const lastNode = nodes[nodes.length - 1];
