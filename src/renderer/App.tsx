@@ -1,7 +1,7 @@
 import { ReactFlowProvider } from '@xyflow/react';
 import MindMap from './components/MindMap';
+import SessionPicker from './components/SessionPicker';
 import Toolbar from './components/Toolbar';
-import NodeDetails from './components/NodeDetails';
 import ThinkingIndicator from './components/ThinkingIndicator';
 import LiveStatusBar from './components/LiveStatusBar';
 import SecondaryPane from './components/SecondaryPane';
@@ -18,6 +18,7 @@ export default function App() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw' }}>
+      <SessionPicker />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <Toolbar />
         <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
@@ -38,7 +39,6 @@ export default function App() {
           )}
         </div>
       </div>
-      <NodeDetails />
     </div>
   );
 }
