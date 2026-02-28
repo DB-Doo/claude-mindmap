@@ -1,7 +1,7 @@
 import { ReactFlowProvider } from '@xyflow/react';
 import MindMap from './components/MindMap';
 import SessionPicker from './components/SessionPicker';
-import Toolbar, { PaneToolbar } from './components/Toolbar';
+import Toolbar, { SplitToolbar } from './components/Toolbar';
 import ThinkingIndicator from './components/ThinkingIndicator';
 import LiveStatusBar from './components/LiveStatusBar';
 import SecondaryPane from './components/SecondaryPane';
@@ -24,15 +24,8 @@ export default function App() {
     <div style={{ display: 'flex', height: '100vh', width: '100vw' }}>
       <SessionPicker />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <Toolbar />
-        {/* Split mode: both pane toolbars in one shared row, guaranteed aligned */}
-        {splitMode && (
-          <div style={{ display: 'flex', flexShrink: 0 }}>
-            <PaneToolbar paneId="primary" />
-            <div style={{ width: 6, flexShrink: 0 }} />
-            <PaneToolbar paneId="secondary" />
-          </div>
-        )}
+        {/* Single-pane: full toolbar. Split: unified L | filters | R bar */}
+        {splitMode ? <SplitToolbar /> : <Toolbar />}
         <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
           {/* Primary pane */}
           <ReactFlowProvider>

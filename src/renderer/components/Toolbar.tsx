@@ -176,7 +176,43 @@ function PaneControls({ paneId }: { paneId: PaneId }) {
   );
 }
 
-/* ── Global Toolbar: filters + split toggle (+ pane controls in single mode) ── */
+/* ── Filter toggles (shared fragment, used in both toolbar modes) ── */
+
+function FilterControls() {
+  const showThinking = useSessionStore(s => s.showThinking);
+  const showText = useSessionStore(s => s.showText);
+  const showSystem = useSessionStore(s => s.showSystem);
+  const toggleShowThinking = useSessionStore(s => s.toggleShowThinking);
+  const toggleShowText = useSessionStore(s => s.toggleShowText);
+  const toggleShowSystem = useSessionStore(s => s.toggleShowSystem);
+  const toggleSplitMode = useSessionStore(s => s.toggleSplitMode);
+
+  return (
+    <Fragment>
+      <div style={groupStyle}>
+        <button style={showThinking ? activeBtn : btn} onClick={toggleShowThinking}>
+          Thinking
+        </button>
+        <button style={showText ? activeBtn : btn} onClick={toggleShowText}>
+          Text
+        </button>
+        <button style={showSystem ? activeBtn : btn} onClick={toggleShowSystem}>
+          System
+        </button>
+      </div>
+      <div style={dividerStyle} />
+      <button
+        style={activeBtn}
+        onClick={toggleSplitMode}
+        title="Close split view"
+      >
+        {'\u29C9'} Split
+      </button>
+    </Fragment>
+  );
+}
+
+/* ── Global Toolbar (single-pane mode only) ── */
 
 export default function Toolbar() {
   const showThinking = useSessionStore(s => s.showThinking);
@@ -187,6 +223,9 @@ export default function Toolbar() {
   const toggleShowSystem = useSessionStore(s => s.toggleShowSystem);
   const splitMode = useSessionStore(s => s.splitMode);
   const toggleSplitMode = useSessionStore(s => s.toggleSplitMode);
+
+  // Hidden in split mode — controls move into the shared pane toolbar row
+  if (splitMode) return null;
 
   return (
     <div style={rowStyle}>
@@ -203,39 +242,39 @@ export default function Toolbar() {
       </div>
       <div style={dividerStyle} />
       <button
-        style={splitMode ? activeBtn : btn}
+        style={btn}
         onClick={toggleSplitMode}
-        title={splitMode ? 'Close split view' : 'Open split view'}
+        title="Open split view"
       >
         {'\u29C9'} Split
       </button>
-      {/* In single-pane mode, per-pane controls sit inline here */}
-      {!splitMode && (
-        <>
-          <div style={dividerStyle} />
-          <PaneControls paneId="primary" />
-        </>
-      )}
+      <div style={dividerStyle} />
+      <PaneControls paneId="primary" />
     </div>
   );
 }
 
-/* ── Per-pane toolbar row (used in split mode, one per pane) ── */
+/* ── Split toolbar row: L controls | filters | R controls ── */
 
-export function PaneToolbar({ paneId }: { paneId: PaneId }) {
-  const label = paneId === 'primary' ? 'L' : 'R';
+export function SplitToolbar() {
   return (
-    <div style={{ ...rowStyle, flex: 1, minWidth: 0 }}>
-      <span style={{
-        fontSize: 9,
-        fontWeight: 700,
-        color: '#a855f7',
-        opacity: 0.5,
-        marginRight: 2,
-      }}>
-        {label}
-      </span>
-      <PaneControls paneId={paneId} />
+    <div style={{ ...rowStyle, gap: 6, padding: '0 8px' }}>
+      {/* Left pane controls */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <span style={{ fontSize: 9, fontWeight: 700, color: '#a855f7', opacity: 0.5 }}>L</span>
+        <PaneControls paneId="primary" />
+      </div>
+      {/* Center: shared filter controls */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <div style={dividerStyle} />
+        <FilterControls />
+        <div style={dividerStyle} />
+      </div>
+      {/* Right pane controls */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <span style={{ fontSize: 9, fontWeight: 700, color: '#a855f7', opacity: 0.5 }}>R</span>
+        <PaneControls paneId="secondary" />
+      </div>
     </div>
   );
 }
