@@ -279,10 +279,13 @@ function applyFilters(
 /**
  * Detect what Claude is currently doing based on the tail of the message stream.
  * Walk backwards from the end to find the last meaningful message type.
+ * When isKnownActive is true (lock file present), skip the staleness check
+ * so long-running tools don't falsely show as idle.
  */
-export function detectActivity(messages: JSONLMessage[]): ActivityInfo {
-  // If the last message is more than 30 seconds old, the session isn't live
-  if (messages.length > 0) {
+export function detectActivity(messages: JSONLMessage[], isKnownActive = false): ActivityInfo {
+  // If the last message is more than 30 seconds old and we don't know the session
+  // is active, assume it's idle
+  if (!isKnownActive && messages.length > 0) {
     const last = messages[messages.length - 1];
     if (last.timestamp) {
       const age = Date.now() - new Date(last.timestamp).getTime();
@@ -559,10 +562,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
     // Try to restore from cache for instant display
     const cached = cache.get(path);
+    const isActive = state.sessions.some(s => s.filePath === path && s.endReason === 'active');
     if (cached && cached.length > 0) {
       // Pass state with updated activeSessionPath so fullRebuild finds the correct session
       const result = fullRebuild({ ...state, activeSessionPath: path }, cached);
-      const { activity, detail } = detectActivity(cached);
+      const { activity, detail } = detectActivity(cached, isActive);
       const tokenStats = computeTokenStats(cached);
       const turnData = computeTurnData(cached);
       set({
@@ -619,7 +623,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   setMessages: (messages) => {
     const state = get();
     const result = fullRebuild(state, messages);
-    const { activity, detail } = detectActivity(messages);
+    const isActive = state.sessions.some(s => s.filePath === state.activeSessionPath && s.endReason === 'active');
+    const { activity, detail } = detectActivity(messages, isActive);
     const tokenStats = computeTokenStats(messages);
     const turnData = computeTurnData(messages);
     const turnChanged = turnData.turnStartTime !== state.turnStartTime && turnData.turnStartTime > 0;
@@ -678,7 +683,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       isNew: newIds.has(node.id),
     }));
 
-    const { activity, detail } = detectActivity(combined);
+    const isActive = state.sessions.some(s => s.filePath === state.activeSessionPath && s.endReason === 'active');
+    const { activity, detail } = detectActivity(combined, isActive);
 
     // Recompute from all messages to stay accurate (dedup handles streaming chunks)
     const tokenStats = computeTokenStats(combined);

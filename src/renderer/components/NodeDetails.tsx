@@ -82,19 +82,41 @@ export default function NodeDetails() {
     return s.nodes.find(n => n.id === s.selectedNodeId) ?? null;
   });
 
-  // Get the assistant reply for user nodes by following edges to child text nodes
+  // Get the assistant reply for user nodes by traversing the edge chain
+  // (user → thinking → text → tool_use → ...) until the next user node.
   const replyDetail = useSessionStore(s => {
     if (!s.selectedNodeId) return null;
     const selectedNode = s.nodes.find(n => n.id === s.selectedNodeId);
     if (!selectedNode || selectedNode.kind !== 'user') return null;
-    const childIds = s.edges
-      .filter(e => e.source === s.selectedNodeId)
-      .map(e => e.target);
-    const textChildren = s.nodes.filter(
-      n => childIds.includes(n.id) && n.kind === 'text'
-    );
-    if (textChildren.length === 0) return null;
-    return textChildren.map(n => n.detail).join('\n\n');
+
+    // Build adjacency map once
+    const childMap = new Map<string, string[]>();
+    for (const e of s.edges) {
+      const list = childMap.get(e.source);
+      if (list) list.push(e.target);
+      else childMap.set(e.source, [e.target]);
+    }
+
+    const nodeMap = new Map(s.nodes.map(n => [n.id, n]));
+    const textDetails: string[] = [];
+    const queue = [s.selectedNodeId];
+    const visited = new Set<string>();
+
+    while (queue.length > 0) {
+      const id = queue.shift()!;
+      if (visited.has(id)) continue;
+      visited.add(id);
+      const n = nodeMap.get(id);
+      if (!n) continue;
+      // Stop at the next user node (don't traverse into the next column)
+      if (n.kind === 'user' && id !== s.selectedNodeId) continue;
+      if (n.kind === 'text') textDetails.push(n.detail);
+      const children = childMap.get(id);
+      if (children) for (const child of children) queue.push(child);
+    }
+
+    if (textDetails.length === 0) return null;
+    return textDetails.join('\n\n');
   });
 
   // Always render the container to keep a stable flex layout.
@@ -131,6 +153,17 @@ export default function NodeDetails() {
         <div style={sectionStyle}>
           <div style={labelStyle}>Detail</div>
           <pre style={preStyle}>{node.detail}</pre>
+        </div>
+      )}
+      {node.replyToSnippet && (
+        <div style={sectionStyle}>
+          <div style={labelStyle}>Replying To</div>
+          <pre style={{
+            ...preStyle,
+            borderLeft: '3px solid #a855f7',
+            fontStyle: 'italic',
+            color: '#94a3b8',
+          }}>{node.replyToSnippet}</pre>
         </div>
       )}
       <div style={sectionStyle}>

@@ -9,7 +9,7 @@ declare global {
       watchSession: (filePath: string) => Promise<any[]>;
       stopWatching: () => Promise<void>;
       onNewMessages: (cb: (messages: any[]) => void) => () => void;
-      peekSessionActivity: (filePaths: string[]) => Promise<{ filePath: string; tailMessages: any[] }[]>;
+      peekSessionActivity: (filePaths: string[]) => Promise<{ filePath: string; tailMessages: any[]; lastUserPrompt: string | null }[]>;
     };
   }
 }
@@ -170,16 +170,19 @@ export function useSessionWatcher(): void {
 
       window.api.peekSessionActivity(activePaths).then((results) => {
         const map = new Map<string, { activity: any; detail?: string; sessionName: string; lastReply?: string }>();
-        // For the current session, use the full rawMessages from the store
-        // (the 4KB tail peek often misses user messages)
         const storeState = useSessionStore.getState();
         for (const r of results) {
           const isCurrent = r.filePath === storeState.activeSessionPath;
+          // For current session, use full rawMessages (always complete).
+          // For background sessions, use lastUserPrompt from main process
+          // (scans up to 512KB to handle image-heavy messages).
           const msgs = isCurrent && storeState.rawMessages.length > 0
             ? storeState.rawMessages
             : r.tailMessages;
-          const { activity, detail } = detectActivity(r.tailMessages);
-          const lastPrompt = findLastUserPrompt(msgs);
+          const { activity, detail } = detectActivity(r.tailMessages, true);
+          const lastPrompt = isCurrent
+            ? findLastUserPrompt(storeState.rawMessages)
+            : r.lastUserPrompt;
           const lastReply = findLastAssistantText(msgs);
           const session = sessions.find((s) => s.filePath === r.filePath);
           const fallback = session?.displayText || session?.sessionId || 'Session';

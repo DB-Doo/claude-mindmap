@@ -76,29 +76,64 @@ ipcMain.handle('stop-watching', async () => {
   }
 });
 
+/** Find the last real user prompt by scanning backward through JSONL lines. */
+function findLastUserPromptFromLines(lines: string[]): string | null {
+  for (let i = lines.length - 1; i >= 0; i--) {
+    let msg: any;
+    try { msg = JSON.parse(lines[i]); } catch { continue; }
+    if (msg.type !== 'user') continue;
+    const content = msg.message?.content;
+    if (content == null) continue;
+    if (typeof content === 'string') {
+      const trimmed = content.trimStart();
+      if (trimmed.startsWith('<task-notification>') || trimmed.startsWith('<system-reminder>')) continue;
+      return content.length > 80 ? content.slice(0, 77) + '\u2026' : content;
+    }
+    if (Array.isArray(content)) {
+      if (content.length > 0 && content.every((b: any) => b.type === 'tool_result')) continue;
+      const textParts = content.filter((b: any) => b.type === 'text' && b.text?.trim()).map((b: any) => b.text);
+      if (textParts.length === 0) continue;
+      const text = textParts.join(' ');
+      return text.length > 80 ? text.slice(0, 77) + '\u2026' : text;
+    }
+  }
+  return null;
+}
+
 ipcMain.handle('peek-session-activity', async (_event, filePaths: string[]) => {
   return filePaths.map((fp) => {
     try {
       const stat = fs.statSync(fp);
-      if (stat.size === 0) return { filePath: fp, tailMessages: [] };
-      const readSize = Math.min(32768, stat.size);
-      const buf = Buffer.alloc(readSize);
+      if (stat.size === 0) return { filePath: fp, tailMessages: [], lastUserPrompt: null };
       const fd = fs.openSync(fp, 'r');
-      fs.readSync(fd, buf, 0, readSize, stat.size - readSize);
-      fs.closeSync(fd);
-      const text = buf.toString('utf8');
-      const lines = text.split('\n').filter((l) => l.trim());
+
+      // Small tail (64KB / 50 msgs) for activity detection
+      const tailSize = Math.min(65536, stat.size);
+      const tailBuf = Buffer.alloc(tailSize);
+      fs.readSync(fd, tailBuf, 0, tailSize, stat.size - tailSize);
+      const tailText = tailBuf.toString('utf8');
+      const tailLines = tailText.split('\n').filter((l) => l.trim());
       const messages: any[] = [];
-      for (let i = lines.length - 1; i >= 0 && messages.length < 20; i--) {
-        try {
-          messages.unshift(JSON.parse(lines[i]));
-        } catch {
-          // skip malformed lines
-        }
+      for (let i = tailLines.length - 1; i >= 0 && messages.length < 50; i--) {
+        try { messages.unshift(JSON.parse(tailLines[i])); } catch { /* skip */ }
       }
-      return { filePath: fp, tailMessages: messages };
+
+      // Try finding user prompt in the small tail first
+      let lastUserPrompt = findLastUserPromptFromLines(tailLines);
+
+      // If not found (image messages can be 100KB+ each), read a larger chunk
+      if (!lastUserPrompt && stat.size > tailSize) {
+        const bigSize = Math.min(524288, stat.size); // 512KB
+        const bigBuf = Buffer.alloc(bigSize);
+        fs.readSync(fd, bigBuf, 0, bigSize, stat.size - bigSize);
+        const bigLines = bigBuf.toString('utf8').split('\n').filter((l) => l.trim());
+        lastUserPrompt = findLastUserPromptFromLines(bigLines);
+      }
+
+      fs.closeSync(fd);
+      return { filePath: fp, tailMessages: messages, lastUserPrompt };
     } catch {
-      return { filePath: fp, tailMessages: [] };
+      return { filePath: fp, tailMessages: [], lastUserPrompt: null };
     }
   });
 });
