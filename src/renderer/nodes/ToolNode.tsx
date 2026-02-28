@@ -29,7 +29,7 @@ function formatToolDisplayName(name: string): string {
 }
 
 function ToolNode({ data, id }: NodeProps) {
-  const gn = data as unknown as GraphNode;
+  const gn = data as unknown as GraphNode & { isExpanded?: boolean };
   const color = TOOL_COLORS[gn.toolName || ''] || TOOL_COLORS.default;
   const icon = TOOL_ICONS[gn.toolName || ''] || '\uD83D\uDD27';
   const toolClass = `tool-${(gn.toolName || 'default').toLowerCase()}`;
@@ -37,7 +37,7 @@ function ToolNode({ data, id }: NodeProps) {
   const needsAnimation = gn.isNew || dimmed;
   const isQuestion = gn.toolName === 'AskUserQuestion' && gn.questionOptions;
 
-  const className = `mind-map-node ${toolClass} ${gn.isLastMessage && isQuestion ? 'tool-last-message' : ''} ${gn.isNew ? 'node-new' : ''} ${gn.status === 'running' ? 'node-running' : ''} ${gn.searchMatch ? 'search-match' : ''}`;
+  const className = `mind-map-node ${toolClass} ${gn.isLastMessage && isQuestion ? 'tool-last-message' : ''} ${gn.isNew ? 'node-new' : ''} ${gn.status === 'running' ? 'node-running' : ''} ${gn.searchMatch ? 'search-match' : ''} ${gn.isExpanded ? 'node-inline-expanded' : ''}`;
   const style = { '--pulse-color': color } as React.CSSProperties;
 
   const content = (
@@ -54,7 +54,11 @@ function ToolNode({ data, id }: NodeProps) {
         )}
         {formatTokensBadge(gn)}
       </div>
-      <div className="node-label">{gn.label}</div>
+      {gn.isExpanded ? (
+        <div className="node-expanded-content">{gn.detail || gn.label}</div>
+      ) : (
+        <div className="node-label">{gn.label}</div>
+      )}
       {isQuestion && gn.questionOptions && (
         <div className="question-options">
           {gn.isLastMessage && (

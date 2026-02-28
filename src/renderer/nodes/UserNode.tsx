@@ -11,11 +11,11 @@ function formatTokens(n: number): string {
 }
 
 function UserNode({ data, id }: NodeProps) {
-  const gn = data as unknown as GraphNode;
+  const gn = data as unknown as GraphNode & { isExpanded?: boolean };
   const dimmed = gn.searchMatch === false && gn.searchMatch !== undefined;
   const needsAnimation = gn.isNew || dimmed;
 
-  const className = `mind-map-node user-node ${gn.isNew ? 'node-new neon-pulse' : ''} ${gn.searchMatch ? 'search-match' : ''}`;
+  const className = `mind-map-node user-node ${gn.isNew ? 'node-new neon-pulse' : ''} ${gn.searchMatch ? 'search-match' : ''} ${gn.isExpanded ? 'node-inline-expanded' : ''}`;
   const style = { '--pulse-color': '#34d399' } as React.CSSProperties;
 
   const content = (
@@ -36,7 +36,11 @@ function UserNode({ data, id }: NodeProps) {
           </span>
         ) : null}
       </div>
-      <div className="node-label">{gn.label}</div>
+      {gn.isExpanded ? (
+        <div className="node-expanded-content">{gn.detail || gn.label}</div>
+      ) : (
+        <div className="node-label">{gn.label}</div>
+      )}
       <Handle type="source" position={Position.Bottom} />
       <CollapseButton nodeId={id} childCount={gn.childCount || 0} collapsed={gn.collapsed || false} />
     </>

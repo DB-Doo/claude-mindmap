@@ -47,7 +47,16 @@ export default function MindMap() {
   const activeSessionPath = useSessionStore(s => s.activeSessionPath);
   const filterRevision = useSessionStore(s => s._filterRevision);
 
-  const { nodes, edges } = useAutoLayout(graphNodes, graphEdges, filterRevision);
+  const layoutResult = useAutoLayout(graphNodes, graphEdges, filterRevision);
+  const expandedNodeId = useSessionStore(s => s.expandedNodeId);
+
+  // Inject isExpanded flag into node data so node components can render inline expansion
+  const nodes = useMemo(() => layoutResult.nodes.map(n => {
+    if (n.id !== expandedNodeId) return n;
+    return { ...n, data: { ...n.data, isExpanded: true }, zIndex: 100 };
+  }), [layoutResult.nodes, expandedNodeId]);
+  const edges = layoutResult.edges;
+
   const { fitView, setCenter, getZoom } = useReactFlow();
   const prevNodeCount = useRef(0);
   const prevSessionPath = useRef<string | null>(null);
@@ -223,12 +232,14 @@ export default function MindMap() {
 
   const expandNode = useSessionStore(s => s.expandNode);
   const onNodeClick = useCallback((_: any, node: Node) => {
-    const currentSelected = useSessionStore.getState().selectedNodeId;
-    if (currentSelected === node.id) {
-      // Already selected — expand to full view
-      expandNode(node.id);
+    const state = useSessionStore.getState();
+    if (state.selectedNodeId === node.id) {
+      // Already selected — toggle inline expand
+      expandNode(state.expandedNodeId === node.id ? null : node.id);
       return;
     }
+    // Collapse any expanded node when selecting a different one
+    if (state.expandedNodeId) expandNode(null);
     selectNode(node.id);
     // Center and zoom to the clicked node so user can read it
     const nodeWidth = node.measured?.width ?? node.width ?? 340;
@@ -241,8 +252,21 @@ export default function MindMap() {
   }, [selectNode, expandNode, setCenter, beginProgrammaticMove, endProgrammaticMoveAfter]);
 
   const onPaneClick = useCallback(() => {
+    const state = useSessionStore.getState();
+    if (state.expandedNodeId) expandNode(null);
     selectNode(null);
-  }, [selectNode]);
+  }, [selectNode, expandNode]);
+
+  // Escape key collapses expanded node
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && useSessionStore.getState().expandedNodeId) {
+        expandNode(null);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [expandNode]);
 
   // Click-to-teleport on minimap: convert SVG click coords → flow coords
   const minimapRef = useRef<HTMLDivElement>(null);

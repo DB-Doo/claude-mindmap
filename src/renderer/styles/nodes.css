@@ -735,7 +735,51 @@
 }
 
 /* ============================================================
-   Expanded Node View — Full-screen overlay modal
+   Inline Expanded Node — click-to-expand content in place
+   ============================================================ */
+
+.node-inline-expanded {
+  max-width: 600px;
+  box-shadow:
+    0 0 16px rgba(168, 85, 247, 0.25),
+    0 0 40px rgba(168, 85, 247, 0.1);
+  border-color: #a855f7;
+  border-width: 2px;
+}
+
+.node-inline-expanded .node-label {
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+.node-expanded-content {
+  font-size: 12px;
+  color: #e2e8f0;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 500px;
+  overflow-y: auto;
+  padding: 8px 4px;
+  scrollbar-width: thin;
+  scrollbar-color: #475569 transparent;
+}
+
+.node-expanded-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.node-expanded-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.node-expanded-content::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 3px;
+}
+
+/* ============================================================
+   Expanded Node View — Full-screen overlay modal (legacy)
    ============================================================ */
 
 .expanded-overlay {

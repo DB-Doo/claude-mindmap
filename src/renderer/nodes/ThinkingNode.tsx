@@ -9,7 +9,7 @@ import { formatTokensBadge } from './tokenBadge';
 const MAX_LABEL_LENGTH = 120;
 
 function ThinkingNode({ data, id }: NodeProps) {
-  const gn = data as unknown as GraphNode;
+  const gn = data as unknown as GraphNode & { isExpanded?: boolean };
 
   // Derived boolean selector — only re-renders when the result changes
   const isActive = useSessionStore((s) => {
@@ -26,7 +26,7 @@ function ThinkingNode({ data, id }: NodeProps) {
   const dimmed = gn.searchMatch === false && gn.searchMatch !== undefined;
   const needsAnimation = gn.isNew || dimmed;
 
-  const className = `mind-map-node thinking-node ${gn.isNew ? 'node-new' : ''} ${isActive ? 'thinking-active' : ''} ${gn.searchMatch ? 'search-match' : ''}`;
+  const className = `mind-map-node thinking-node ${gn.isNew ? 'node-new' : ''} ${isActive ? 'thinking-active' : ''} ${gn.searchMatch ? 'search-match' : ''} ${gn.isExpanded ? 'node-inline-expanded' : ''}`;
   const style = { '--pulse-color': isActive ? '#a855f7' : '#64748b' } as React.CSSProperties;
 
   const content = (
@@ -38,7 +38,11 @@ function ThinkingNode({ data, id }: NodeProps) {
         {isActive && <div className="spinner" style={{ display: 'inline-block', borderTopColor: '#a855f7' }} />}
         {formatTokensBadge(gn)}
       </div>
-      <div className="node-label">{truncated}</div>
+      {gn.isExpanded ? (
+        <div className="node-expanded-content">{gn.detail || gn.label}</div>
+      ) : (
+        <div className="node-label">{truncated}</div>
+      )}
       <Handle type="source" position={Position.Bottom} />
       <CollapseButton nodeId={id} childCount={gn.childCount || 0} collapsed={gn.collapsed || false} />
     </>

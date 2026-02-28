@@ -6,11 +6,11 @@ import CollapseButton from './CollapseButton';
 import { formatTokensBadge } from './tokenBadge';
 
 function TextNode({ data, id }: NodeProps) {
-  const gn = data as unknown as GraphNode;
+  const gn = data as unknown as GraphNode & { isExpanded?: boolean };
   const dimmed = gn.searchMatch === false && gn.searchMatch !== undefined;
   const needsAnimation = gn.isNew || dimmed;
 
-  const className = `mind-map-node text-node ${gn.isFirstResponse ? 'text-primary' : ''} ${gn.isLastMessage ? 'text-last-message' : ''} ${gn.isNew ? 'node-new' : ''} ${gn.searchMatch ? 'search-match' : ''}`;
+  const className = `mind-map-node text-node ${gn.isFirstResponse ? 'text-primary' : ''} ${gn.isLastMessage ? 'text-last-message' : ''} ${gn.isNew ? 'node-new' : ''} ${gn.searchMatch ? 'search-match' : ''} ${gn.isExpanded ? 'node-inline-expanded' : ''}`;
   const style = { '--pulse-color': '#6b7280' } as React.CSSProperties;
 
   const content = (
@@ -21,8 +21,12 @@ function TextNode({ data, id }: NodeProps) {
         <span>Response</span>
         {formatTokensBadge(gn)}
       </div>
-      <div className="node-label">{gn.label}</div>
-      {gn.isLastMessage && (
+      {gn.isExpanded ? (
+        <div className="node-expanded-content">{gn.detail || gn.label}</div>
+      ) : (
+        <div className="node-label">{gn.label}</div>
+      )}
+      {gn.isLastMessage && !gn.isExpanded && (
         <div className="waiting-badge">
           <span className="waiting-dot" />
           <span>{'\u23F3'} Waiting for you</span>
