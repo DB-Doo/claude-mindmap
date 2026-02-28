@@ -350,10 +350,10 @@ export function detectActivity(messages: JSONLMessage[], isKnownActive = false):
       const stopReason = (msg as any).message?.stop_reason;
       if (stopReason === 'end_turn') return { activity: 'waiting_on_user' };
 
-      // Staleness fallback: if the last message is >15s old and we'd say
+      // Staleness fallback: if the last message is >3s old and we'd say
       // 'responding' or 'thinking', Claude almost certainly finished and we
       // missed the final signal (streaming chunk timing, watcher delay, etc.)
-      if (lastMessageAge > 15_000) {
+      if (lastMessageAge > 3_000) {
         if (last.type === 'thinking' || last.type === 'text') {
           return { activity: 'waiting_on_user' };
         }
