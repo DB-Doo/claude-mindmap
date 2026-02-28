@@ -12,7 +12,10 @@ const ROW_GAP = 35;   // vertical gap between nodes in a column
 const TOP_MARGIN = 40;
 
 function estimateNodeHeight(node: GraphNode): number {
-  const lines = Math.min(Math.ceil(node.label.length / CHARS_PER_LINE), MAX_LINES);
+  // Last-message nodes show up to 16 lines in a wider box
+  const maxLines = node.isLastMessage ? 16 : MAX_LINES;
+  const charsPerLine = node.isLastMessage ? 44 : CHARS_PER_LINE; // wider node
+  const lines = Math.min(Math.ceil(node.label.length / charsPerLine), maxLines);
   let height = BASE_HEIGHT + lines * LINE_HEIGHT;
   // User nodes have extra content: reply-to snippet + token tally
   if (node.kind === 'user') {
@@ -21,6 +24,8 @@ function estimateNodeHeight(node: GraphNode): number {
   }
   // First-response text nodes have larger text
   if (node.isFirstResponse) height += 12;
+  // Last-message nodes have a "Waiting for you" badge
+  if (node.isLastMessage) height += 32;
   return height;
 }
 
@@ -226,7 +231,7 @@ export function useAutoLayout(
         id: gn.id,
         type: nodeTypeFromKind(gn.kind),
         position: { x: pos.x, y: pos.y },
-        width: NODE_WIDTH,
+        width: gn.isLastMessage ? 420 : NODE_WIDTH,
         height: estimateNodeHeight(gn),
         data: gn as unknown as Record<string, unknown>,
       };
