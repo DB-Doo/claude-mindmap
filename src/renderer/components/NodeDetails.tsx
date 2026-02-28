@@ -82,6 +82,21 @@ export default function NodeDetails() {
     return s.nodes.find(n => n.id === s.selectedNodeId) ?? null;
   });
 
+  // Get the assistant reply for user nodes by following edges to child text nodes
+  const replyDetail = useSessionStore(s => {
+    if (!s.selectedNodeId) return null;
+    const selectedNode = s.nodes.find(n => n.id === s.selectedNodeId);
+    if (!selectedNode || selectedNode.kind !== 'user') return null;
+    const childIds = s.edges
+      .filter(e => e.source === s.selectedNodeId)
+      .map(e => e.target);
+    const textChildren = s.nodes.filter(
+      n => childIds.includes(n.id) && n.kind === 'text'
+    );
+    if (textChildren.length === 0) return null;
+    return textChildren.map(n => n.detail).join('\n\n');
+  });
+
   // Always render the container to keep a stable flex layout.
   // Collapsed (width: 0) when no node selected, expanded (360px) when selected.
   if (!node) return <div style={collapsedStyle} />;
@@ -122,6 +137,16 @@ export default function NodeDetails() {
         <div style={labelStyle}>Timestamp</div>
         <div style={contentStyle}>{node.timestamp}</div>
       </div>
+      {replyDetail && (
+        <div style={sectionStyle}>
+          <div style={labelStyle}>Claude's Reply</div>
+          <pre style={{
+            ...preStyle,
+            borderLeft: '3px solid #34d399',
+            maxHeight: 500,
+          }}>{replyDetail}</pre>
+        </div>
+      )}
     </div>
   );
 }
