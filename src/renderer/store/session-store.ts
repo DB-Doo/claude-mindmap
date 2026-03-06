@@ -121,6 +121,16 @@ interface SessionState {
   toggleShowText: () => void;
   toggleShowSystem: () => void;
   setBackgroundActivities: (map: Map<string, { activity: LiveActivity; detail?: string; sessionName: string; lastReply?: string }>) => void;
+
+  // Chat subprocess state
+  chatStatus: 'idle' | 'spawning' | 'thinking' | 'responding' | 'tool_running' | 'done' | 'error';
+  chatStatusDetail?: string;
+  chatError?: string;
+  setChatStatus: (status: string, detail?: string, error?: string) => void;
+
+  // Permission request state
+  permissionRequest: { requestId: string; toolName: string; toolInput: any } | null;
+  setPermissionRequest: (req: { requestId: string; toolName: string; toolInput: any } | null) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -382,7 +392,8 @@ export function windowMessages(messages: JSONLMessage[], maxTurns: number): JSON
       const hasOnlyToolResults = content.length > 0 && content.every((b: any) => b.type === 'tool_result');
       if (hasOnlyToolResults) continue;
       const hasText = content.some((b: any) => b.type === 'text' && b.text?.trim());
-      if (!hasText) continue;
+      const hasImage = content.some((b: any) => b.type === 'image');
+      if (!hasText && !hasImage) continue;
     }
     userIndices.push(i);
   }
@@ -410,7 +421,8 @@ export function computeTurnData(messages: JSONLMessage[]): { turnStartTime: numb
       const hasOnlyToolResults = content.length > 0 && content.every((b: any) => b.type === 'tool_result');
       if (hasOnlyToolResults) continue;
       const hasText = content.some((b: any) => b.type === 'text' && b.text?.trim());
-      if (!hasText) continue;
+      const hasImage = content.some((b: any) => b.type === 'image');
+      if (!hasText && !hasImage) continue;
     }
     turnStartTime = new Date(msg.timestamp).getTime();
     const outputById = new Map<string, number>();
@@ -588,6 +600,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   backgroundActivities: new Map(),
   _sessionCache: new Map<string, JSONLMessage[]>(),
   splitMode: false,
+  chatStatus: 'idle' as const,
+  chatStatusDetail: undefined,
+  chatError: undefined,
+  permissionRequest: null,
 
   // Pane state
   panes: {
@@ -877,6 +893,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   setBackgroundActivities: (map) => set({ backgroundActivities: map }),
+
+  setChatStatus: (status, detail, error) => set({
+    chatStatus: status as any,
+    chatStatusDetail: detail,
+    chatError: error,
+  }),
+
+  setPermissionRequest: (req) => set({ permissionRequest: req }),
 
   updatePaneFields: (updates, paneId?) => {
     const state = get();

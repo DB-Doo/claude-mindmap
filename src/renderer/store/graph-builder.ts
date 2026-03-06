@@ -301,20 +301,23 @@ export function buildGraph(
 
       // Extract text from text blocks
       const textParts: string[] = [];
+      let hasImage = false;
       for (const block of content) {
         if (block.type === 'text') {
           textParts.push(block.text);
+        } else if (block.type === 'image') {
+          hasImage = true;
         }
       }
 
-      if (textParts.length === 0) {
+      if (textParts.length === 0 && !hasImage) {
         if (msg.parentUuid) {
           skipRedirect.set(msg.uuid, msg.parentUuid);
         }
         continue;
       }
 
-      const text = textParts.join('\n');
+      const text = textParts.length > 0 ? textParts.join('\n') : '📷 Image';
 
       // Skip system-injected messages in array content too
       const trimmedText = text.trimStart();

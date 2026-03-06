@@ -25,7 +25,12 @@ export interface ToolResultBlock {
   content: string | unknown[];
 }
 
-export type ContentBlock = ThinkingBlock | TextBlock | ToolUseBlock | ToolResultBlock;
+export interface ImageBlock {
+  type: 'image';
+  source: unknown;
+}
+
+export type ContentBlock = ThinkingBlock | TextBlock | ToolUseBlock | ToolResultBlock | ImageBlock;
 
 // ---------------------------------------------------------------------------
 // JSONL Message Types
