@@ -126,6 +126,10 @@ export interface GraphNode {
   wasQueued?: boolean;
   /** True when this queue node was cancelled (removed, not sent to Claude). */
   queueCancelled?: boolean;
+  /** Base64-encoded image data for image user messages. */
+  imageData?: string;
+  /** MIME type for imageData (e.g. "image/png"). */
+  imageMime?: string;
   /** Pre-computed lowercase search text (label + detail + toolName). */
   _searchText?: string;
 }

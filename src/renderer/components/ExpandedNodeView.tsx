@@ -140,6 +140,18 @@ export default function ExpandedNodeView() {
             </div>
           </div>
 
+          {/* Image */}
+          {node.imageData && (
+            <div className="expanded-section">
+              <div className="expanded-label">Image</div>
+              <img
+                src={`data:${node.imageMime || 'image/png'};base64,${node.imageData}`}
+                alt="Pasted image"
+                style={{ maxWidth: '100%', maxHeight: 500, borderRadius: 6, objectFit: 'contain' }}
+              />
+            </div>
+          )}
+
           {/* Detail */}
           {node.detail && node.detail !== node.label && (
             <div className="expanded-section">

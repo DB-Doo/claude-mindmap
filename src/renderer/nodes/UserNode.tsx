@@ -38,10 +38,25 @@ function UserNode({ data, id }: NodeProps) {
           </span>
         ) : null}
       </div>
+      {gn.imageData && (
+        <div className="node-image-thumb">
+          <img
+            src={`data:${gn.imageMime || 'image/png'};base64,${gn.imageData}`}
+            alt="Pasted image"
+            style={{
+              maxWidth: gn.isExpanded ? 400 : 160,
+              maxHeight: gn.isExpanded ? 300 : 80,
+              borderRadius: 4,
+              marginTop: 4,
+              objectFit: 'contain',
+            }}
+          />
+        </div>
+      )}
       {gn.isExpanded ? (
         <div className="node-expanded-content">{gn.detail || gn.label}</div>
       ) : (
-        <div className="node-label">{gn.label}</div>
+        gn.label !== '📷 Image' && <div className="node-label">{gn.label}</div>
       )}
       <Handle type="source" position={Position.Bottom} />
       <CollapseButton nodeId={id} childCount={gn.childCount || 0} collapsed={gn.collapsed || false} />

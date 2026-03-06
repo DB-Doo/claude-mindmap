@@ -299,14 +299,21 @@ export function buildGraph(
         continue;
       }
 
-      // Extract text from text blocks
+      // Extract text and image data from content blocks
       const textParts: string[] = [];
       let hasImage = false;
+      let imageData: string | undefined;
+      let imageMime: string | undefined;
       for (const block of content) {
         if (block.type === 'text') {
           textParts.push(block.text);
         } else if (block.type === 'image') {
           hasImage = true;
+          const src = (block as any).source;
+          if (src?.type === 'base64' && src.data) {
+            imageData = src.data;
+            imageMime = src.media_type || 'image/png';
+          }
         }
       }
 
@@ -340,6 +347,8 @@ export function buildGraph(
           timestamp: msg.timestamp,
           isNew: false,
           replyToSnippet: replyToSnippet || undefined,
+          imageData,
+          imageMime,
         },
         msg.uuid,
       );
